@@ -74,15 +74,7 @@
           </el-input-number>
         </el-form-item>
 
-        <el-form-item label="最大推荐数量（最终结果会比此值略少）">
-          <el-input-number v-model="query_store.query_params.suggest_count_want" :min="1" :max="50" :step="1"
-            step-strictly>
-            <template #suffix>
-              <span>个</span>
-            </template>
-          </el-input-number>
-        </el-form-item>
-        <el-divider />
+
 
         <el-form-item label="具体需求">
           <el-input v-model="query_store.query_params.user_need" type="textarea" :autosize="{ minRows: 3, maxRows: 15 }"
