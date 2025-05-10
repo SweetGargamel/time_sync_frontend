@@ -94,13 +94,19 @@
         <el-icon class="warning-icon">
           <Warning />
         </el-icon>
-        等待查询时请不要刷新界面。
+        等待结果返回时请不要刷新界面。
       </el-text>
       <el-text class="warning-text" type="warning">
         <el-icon class="warning-icon">
           <Warning />
         </el-icon>
         默认网页会加载您之前结果的缓存。
+      </el-text>
+      <el-text class="warning-text" type="warning">
+        <el-icon class="warning-icon">
+          <Warning />
+        </el-icon>
+        目前我们的提取日程的智能体还在进一步完善，当前的效果可能不一定是最好的
       </el-text>
       <el-table :data="events_store.LLM_asking_events" border style="width: 100%;" table-layout="auto">
         <el-table-column prop="id" label="ID" width="100" :resizable="false" />

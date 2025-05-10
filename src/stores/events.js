@@ -292,10 +292,10 @@ export const useEventsStore = defineStore(
       }
     }
     async function loop_get_updating_events() {
-      // 每两秒执行一次 get_updating_events 函数
+      // 每5秒执行一次 get_updating_events 函数
       setInterval(async () => {
         await get_updating_events()
-      }, 2000)
+      }, 5000)
     }
     //用来查询正在更新的函数
     async function get_updating_events() {
@@ -306,8 +306,11 @@ export const useEventsStore = defineStore(
             // 发送 GET 请求
             const response = await axios.get(`${get_updating_events_url}/${event.id}`)
             if (response.status === 404) {
-              // 如果返回 404，表示事件不存在，直接删除
-              ElMessage.error('后台找不到该事件')
+              ElNotification.error({
+                title: '智能提取结果',
+                message: `创建于${event.timestamp}、ID 为 ${event.id} 的AI智能提取事件已失败。后台链接失败，请重新提交}`,
+                position: 'bottom-right',
+              })
             } else if (response.status === 200) {
               // 处理返回状态
               if (response.data.status === 'failed') {
@@ -316,7 +319,7 @@ export const useEventsStore = defineStore(
                 // 弹出通知
                 ElNotification.error({
                   title: '智能提取结果',
-                  message: `创建于${event.timestamp}、ID 为 ${event.id} 的 LLM_asking_event 已失败}`,
+                  message: `创建于${event.timestamp}的AI智能提取事件失败。${response.data.msg}}`,
                   position: 'bottom-right',
                 })
               }
@@ -339,7 +342,7 @@ export const useEventsStore = defineStore(
                 // 弹出通知
                 ElNotification.success({
                   title: '智能提取结果',
-                  message: `创建于${event.timestamp}、ID 为 ${event.id} 的 LLM_asking_event 已成功}`,
+                  message: `创建于${event.timestamp} 的AI智能提取事件成功。${response.data.msg}}`,
                   position: 'bottom-right',
                 })
               }
@@ -349,7 +352,7 @@ export const useEventsStore = defineStore(
               // 弹出通知
               ElNotification.error({
                 title: '智能提取结果',
-                message: `创建于${event.timestamp}、ID 为 ${event.id} 的 LLM_asking_event 已失败}`,
+                message: `创建于${event.timestamp}、ID 为 ${event.id} 的AI智能提取事件已失败。请重新尝试}`,
                 position: 'bottom-right',
               })
             }

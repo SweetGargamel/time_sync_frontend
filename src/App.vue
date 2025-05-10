@@ -8,6 +8,14 @@
             <span class="italic-text">TimeSync</span>
             <span> For NJU</span>
           </span>
+          <div class="header-right">
+            <el-button type="warning" @click="handleResetCache">
+              <el-icon>
+                <Refresh />
+              </el-icon>
+              如遇页面卡顿，点我重置缓存并强制刷新
+            </el-button>
+          </div>
         </div>
       </el-header>
       <el-container class="main-container">
@@ -54,7 +62,7 @@
 
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue'
-import { Search, Edit, HomeFilled, User } from '@element-plus/icons-vue'
+import { Search, Edit, HomeFilled, User, Refresh } from '@element-plus/icons-vue'
 import { useRoute } from 'vue-router'
 import { useEventsStore } from './stores/events'
 import logo from "@/assets/logo.png"
@@ -64,6 +72,30 @@ const eventsstore = useEventsStore()
 
 const selected = (index) => {
   console.log("selected route:", index)
+}
+
+const handleResetCache = () => {
+  // 清除所有 Pinia 持久化存储
+  let piniaPrefix = 'events';
+  Object.keys(localStorage).forEach(key => {
+    if (key.startsWith(piniaPrefix)) {
+      localStorage.removeItem(key);
+    }
+  });
+  piniaPrefix = 'personGroup';
+  Object.keys(localStorage).forEach(key => {
+    if (key.startsWith(piniaPrefix)) {
+      localStorage.removeItem(key);
+    }
+  });
+  piniaPrefix = 'query';
+  Object.keys(localStorage).forEach(key => {
+    if (key.startsWith(piniaPrefix)) {
+      localStorage.removeItem(key);
+    }
+  });
+  // 强制刷新页面
+  window.location.reload();
 }
 
 // 在组件挂载时获取人员列表和组列表
@@ -114,6 +146,8 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   gap: 10px;
+  width: 100%;
+  position: relative;
 }
 
 .header-title {
@@ -123,6 +157,21 @@ onUnmounted(() => {
 
 .italic-text {
   font-style: italic;
+}
+
+.header-right {
+  position: absolute;
+  right: 0;
+}
+
+.header-right .el-button {
+  margin-right: 16px;
+  background-color: #824082;
+  border-color: #824082;
+}
+
+.header-right .el-button:hover {
+  transform: translateY(-1px);
 }
 
 .el-aside {

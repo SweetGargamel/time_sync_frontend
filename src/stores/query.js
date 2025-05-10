@@ -21,7 +21,7 @@ export const useQueryStore = defineStore(
       endDateInISO: '', // 结束日期
       duration: 1, // 时间段
       user_need: '', // 用户输入的文本
-      suggest_count_want: 10, // 期望的最大返回推荐时间段数量
+      // suggest_count_want: 10, // 期望的最大返回推荐时间段数量
     })
 
     // 颜色插值函数：根据可参会率返回渐变色
@@ -120,7 +120,7 @@ export const useQueryStore = defineStore(
           events.value.push({
             start: startTime,
             end: endTime,
-            title: `推荐指数${weight}`,
+            title: `可参会率${(availableRate * 100).toFixed(2)}%`,
             content: content,
             contentFull:
               `时间段：${interval.start} - ${interval.end}\n` +
@@ -187,7 +187,7 @@ export const useQueryStore = defineStore(
             must_persons: query_params.requiredPersons,
             duration_time: query_params.duration,
             user_need: query_params.user_need,
-            suggest_count_want: query_params.suggest_count_want,
+            // suggest_count_want: query_params.suggest_count_want,
           },
           {
             headers: {
