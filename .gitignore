@@ -16,7 +16,7 @@ coverage
 
 test_server/
 test_json/
-*.json
+course_data.json
 
 /cypress/videos/
 /cypress/screenshots/

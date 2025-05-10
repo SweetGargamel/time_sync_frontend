@@ -1,0 +1,29 @@
+{
+  "name": "time_sync",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "format": "prettier --write src/"
+  },
+  "dependencies": {
+    "@element-plus/icons-vue": "^2.3.1",
+    "axios": "^1.9.0",
+    "element-plus": "^2.9.9",
+    "pinia": "^3.0.2",
+    "pinia-plugin-persistedstate": "^4.2.0",
+    "uuid": "^11.1.0",
+    "vue": "^3.5.13",
+    "vue-cal": "^5.0.1-rc.19",
+    "vue-router": "^4.5.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^5.2.3",
+    "prettier": "3.5.3",
+    "vite": "^6.2.4",
+    "vite-plugin-vue-devtools": "^7.7.2"
+  }
+}
