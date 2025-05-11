@@ -68,8 +68,29 @@
           <el-button type="primary" style="margin-top: 10px;" @click="handleExtract">AI智能提取日程</el-button>
         </div>
       </div>
-    </div>
 
+
+    </div>
+    <!-- 上传文件部分应该放在这里 -->
+    <div class="file-section">
+      <h3>上传相关文档</h3>
+      <el-upload v-model:file-list="filesStore.fileList" class="upload-demo" drag action="#" multiple
+        :auto-upload="false" :on-change="handleFileChange" :on-remove="handleFileRemove"
+        accept=".pdf,.doc,.docx,.ppt,.pptx,.jpg,.jpeg,.png,.gif,.bmp,.webp">
+        <el-icon class="el-icon--upload"><upload-filled /></el-icon>
+        <div class="el-upload__text">
+          将文件拖到此处或 <em>点击上传</em>
+        </div>
+        <template #tip>
+          <div class="el-upload__tip">
+            请上传 PDF, Word, PPT 或常见图片格式文件 (单个文件不超过 5MB)
+          </div>
+        </template>
+      </el-upload>
+      <div class="upload-button-group">
+        <el-button type="primary" @click="handleUploadAllFiles">全部上传</el-button>
+      </div>
+    </div>
     <!-- 编辑文本对话框 -->
     <el-dialog v-model="editDialogVisible" title="编辑文本" width="50%" draggable>
       <el-form>
@@ -85,7 +106,7 @@
         </span>
       </template>
     </el-dialog>
-    <el-divider />
+
 
     <!-- 添加 LLM_asking_events 表格 -->
     <div class="table-section">
@@ -335,19 +356,25 @@
             <el-icon class="warning-icon">
               <Warning />
             </el-icon>
-            暂时只支持本科生课表录入，我们不会记录您的账号和密码
+            暂时只支持本科生课表录入，我们不会记录您的账号和密码。
           </el-text>
           <el-text type="warning">
             <el-icon class="warning-icon">
               <Warning />
             </el-icon>
-            请您先正确录入人员的信息（尤其是学号），否则无法导入课表
+            请您先正确录入人员的信息（尤其是学号），否则无法导入课表。
           </el-text>
           <el-text type="warning">
             <el-icon class="warning-icon">
               <Warning />
             </el-icon>
-            爬取过程中请不要刷新界面
+            爬取过程中请不要刷新界面。
+          </el-text>
+          <el-text type="warning">
+            <el-icon class="warning-icon">
+              <Warning />
+            </el-icon>
+            如果有爬取失败的情况，可能会是因为您的课表有特殊类型的课程/网络问题。之前我们测试的时候遇到过包含单双周上课的课程导致无法正确解析的（现在已经修复）。如您还遇到类似的问题请联系我们处理
           </el-text>
         </el-form-item>
         <!-- :filter-method="handlePersonSelectOfNJUClass" -->
@@ -384,8 +411,9 @@ import { ref, reactive, onMounted, computed, watch, nextTick } from 'vue'
 import { useEventsStore } from '../stores/events'
 import { usePersonGroupStore } from '@/stores/persongroup'
 import { ElMessage, ElLoading } from 'element-plus'
-import { crawl_nju_class_url } from '../stores/url'
-import axios from 'axios'
+import { useNjuCrawler } from '@/hooks/nju_crawler.js'
+import { useFilesStore } from '@/stores/files'
+import { useFileUploader } from '@/hooks/file_uploader'
 
 import { v4 as uuidv4 } from 'uuid'
 import { Edit, Warning } from '@element-plus/icons-vue'
@@ -395,8 +423,52 @@ const person_group_store = usePersonGroupStore()
 const groupList = computed(() => person_group_store.group_list)
 const personList = computed(() => person_group_store.person_list)
 
-const scheduleTable = ref(null)
+const filesStore = useFilesStore()
+const { uploadFile } = useFileUploader()
 
+const scheduleTable = ref(null)
+// 定义表单引用
+const ruleFormRef = ref()
+// Destructure from the new hook
+const {
+  njuAuthDialogVisible,
+  NJUClassForm,
+  njuAuthRules,
+  njuAuthFormRef,
+  handlePersonSelect,
+  showNJUAuthDialog,
+  handleNJUAuthSubmit
+} = useNjuCrawler(personList)
+// 定义验证规则
+const rules = reactive({
+  selectedPersons: [
+    { required: true, message: '请选择涉及人员', trigger: 'change' }
+  ],
+  reason: [
+    { required: true, message: '请输入事件原因', trigger: 'blur' }
+  ],
+  startDate: [
+    { required: true, message: '请选择开始日期', trigger: 'change' }
+  ],
+  startTime: [
+    { required: true, message: '请选择开始时间', trigger: 'change' }
+  ],
+  endDate: [
+    { required: true, message: '请选择结束日期', trigger: 'change' }
+  ],
+  endTime: [
+    { required: true, message: '请选择结束时间', trigger: 'change' }
+  ]
+})
+// 选择框控制
+const selectable = (row) => !row.submitted
+
+// 添加一个标志位来防止循环触发
+const Lock_Normal_Groups = ref(false)
+const Lock_Normal_Persons = ref(false)
+// 编辑对话框相关
+const editDialogVisible = ref(false)
+const editingText = ref('')
 const handleConfirm = async (index, row) => {
   if (!scheduleTable.value) {
     ElMessage.error('表格未正确加载')
@@ -496,30 +568,7 @@ const handleEdit = (index, row) => {
   events_store.dialogVisible = true
 }
 
-// 定义验证规则
-const rules = reactive({
-  selectedPersons: [
-    { required: true, message: '请选择涉及人员', trigger: 'change' }
-  ],
-  reason: [
-    { required: true, message: '请输入事件原因', trigger: 'blur' }
-  ],
-  startDate: [
-    { required: true, message: '请选择开始日期', trigger: 'change' }
-  ],
-  startTime: [
-    { required: true, message: '请选择开始时间', trigger: 'change' }
-  ],
-  endDate: [
-    { required: true, message: '请选择结束日期', trigger: 'change' }
-  ],
-  endTime: [
-    { required: true, message: '请选择结束时间', trigger: 'change' }
-  ]
-})
 
-// 定义表单引用
-const ruleFormRef = ref()
 
 const handleCancelofdialog = function () {
   events_store.dialogVisible = false
@@ -527,12 +576,7 @@ const handleCancelofdialog = function () {
   events_store.currentEditIndex = -1  // 重置编辑索引
 }
 
-// 选择框控制
-const selectable = (row) => !row.submitted
 
-// 添加一个标志位来防止循环触发
-const Lock_Normal_Groups = ref(false)
-const Lock_Normal_Persons = ref(false)
 
 // 辅助函数：判断人员是否存在于其他选中组
 const isPersonInGroups = (personId, selectedGroups) => {
@@ -641,9 +685,7 @@ watch(() => events_store.scheduleForm.selectedPersons, async (newPersons, oldPer
   }
 }, { deep: true })
 
-// 编辑对话框相关
-const editDialogVisible = ref(false)
-const editingText = ref('')
+
 
 // 打开编辑对话框时，将当前文本复制到编辑区
 watch(() => editDialogVisible.value, (newVal) => {
@@ -748,18 +790,6 @@ onMounted(async () => {
   ])
 })
 
-// 保证 svg 变量存在
-const svg = `
-        <path class="path" d="
-          M 30 15
-          L 28 17
-          M 25.61 25.61
-          A 15 15, 0, 0, 1, 15 30
-          A 15 15, 0, 1, 1, 27.99 7.5
-          L 15 15
-        " style="stroke-width: 4px; fill: rgba(0, 0, 0, 0)"/>
-      `
-
 // 编辑按钮点击事件，已提交则提示
 const onEditClick = (index, row) => {
   if (row.submitted) {
@@ -820,89 +850,92 @@ const handleDeleteSelected = () => {
   ElMessage.success('已删除选中项')
 }
 
-const njuAuthDialogVisible = ref(false)
-const NJUClassForm = reactive({
-  user_name: '',
-  password: '',
-  selectedPerson: ''
-})
+// --- 文件上传相关 --- 
+const allowedFileTypes = [
+  'application/pdf',
+  'application/msword',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/vnd.ms-powerpoint',
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  'image/jpeg',
+  'image/png',
+  'image/gif',
+  'image/bmp',
+  'image/webp'
+];
+const maxFileSize = 5 * 1024 * 1024; // 5MB
 
-const njuAuthRules = {
-  selectedPerson: [
-    { required: true, message: '请选择人员', trigger: 'change' }
-  ],
-  user_name: [
-    { required: true, message: '请输入学号', trigger: 'blur' },
-    { pattern: /^\d{9}$/, message: '学号必须为9位数字', trigger: 'blur' }
-  ],
-  password: [
-    { required: true, message: '请输入密码', trigger: 'blur' }
-  ]
-}
+const handleFileChange = (uploadFile, uploadFiles) => {
+  // uploadFile 包含 uid, name, raw, status, percentage 等
+  // uploadFiles 是当前的完整文件列表
 
+  // ElMessage.info(`文件 ${uploadFile.name} 状态变为 ${uploadFile.status}`);
 
-
-
-const njuAuthFormRef = ref(null)
-
-const handlePersonSelect = (value) => {
-  const selectedPersonData = personList.value.find(person => person.id === value)
-  if (selectedPersonData) {
-    NJUClassForm.user_name = selectedPersonData.id
-  }
-}
-
-const showNJUAuthDialog = () => {
-  njuAuthDialogVisible.value = true
-  NJUClassForm.selectedPerson = ''
-  NJUClassForm.user_name = ''
-  NJUClassForm.password = ''
-}
-
-const handleNJUAuthSubmit = async () => {
-
-  njuAuthDialogVisible.value = false
-  await njuAuthFormRef.value.validate(async (valid) => {
-    if (!valid) return
-    if (valid) {
-      // 创建全屏加载遮罩
-      const loading = ElLoading.service({
-        lock: true,
-        text: '正在向后台导入课表信息...',
-        background: 'rgba(0, 0, 0, 0.7)',
-      })
-
-      try {
-        // 发送请求到后端
-        const response = await axios.post(crawl_nju_class_url, {
-          id: NJUClassForm.user_name,
-          password: NJUClassForm.password
-        })
-        console.log(response.status)
-        // 根据返回状态码处理不同情况
-        if (response.data.code === 200) {
-          ElMessage.success(response.data.msg || '导入课表成功')
-          njuAuthDialogVisible.value = false
-        } else if (response.data.code === 401) {
-          ElMessage.error(response.data.msg || '账号或密码错误')
-        } else if (response.data.code === 403) {
-          ElMessage.error(response.data.msg || '课表爬虫失效')
-        } else {
-          ElMessage.error(response.data.msg || '其他未知错误')
-        }
-      } catch (error) {
-        ElMessage.error('请求失败，请稍后重试')
-      } finally {
-        // 关闭加载遮罩
-        loading.close()
-        // 清空表单
-        NJUClassForm.user_name = ''
-        NJUClassForm.password = ''
-        NJUClassForm.selectedPerson = ''
+  // 仅在文件状态为 'ready' (新添加) 时处理
+  if (uploadFile.status === 'ready') {
+    if (!allowedFileTypes.includes(uploadFile.raw.type)) {
+      ElMessage.error(`文件格式不支持: ${uploadFile.name}`);
+      // 从 el-upload 的列表中移除，并通过 uid 从 store 中移除
+      const internalFileIndex = filesStore.fileList.findIndex(f => f.uid === uploadFile.uid);
+      if (internalFileIndex !== -1) {
+        // 这个uid是el-upload内部的，我们需要找到我们store中对应的文件并移除
+        // 这里假设 el-upload 的 uid 和我们 store 的 uid 是一致的
+        filesStore.removeFileByUid(uploadFile.uid);
       }
+      // 更新 el-upload 内部维护的列表
+      const elUploadListIndex = uploadFiles.findIndex(f => f.uid === uploadFile.uid);
+      if (elUploadListIndex > -1) {
+        uploadFiles.splice(elUploadListIndex, 1);
+      }
+      return;
     }
-  })
-}
+
+    if (uploadFile.raw.size > maxFileSize) {
+      ElMessage.error(`文件 ${uploadFile.name} 太大，超过 5MB 限制`);
+      const internalFileIndex = filesStore.fileList.findIndex(f => f.uid === uploadFile.uid);
+      if (internalFileIndex !== -1) {
+        filesStore.removeFileByUid(uploadFile.uid);
+      }
+      const elUploadListIndex = uploadFiles.findIndex(f => f.uid === uploadFile.uid);
+      if (elUploadListIndex > -1) {
+        uploadFiles.splice(elUploadListIndex, 1);
+      }
+      return;
+    }
+    // 如果文件已存在于 store (基于 el-upload 的 uid)，则不重复添加
+    // el-upload 的 on-change 会在添加和状态改变时触发，我们需要确保只在首次添加时调用 addFile
+    // filesStore.addFile 内部会生成新的 uid 和 id，所以这里我们依赖 el-upload 提供的 uploadFile.raw
+    // 并且在addFile后，el-upload 的 file-list 会通过 v-model 更新
+    // 关键在于确保 v-model:file-list 的 uid 与 store 中的 uid 一致
+    if (!filesStore.getFileByUid(uploadFile.uid)) {
+      const addedFile = filesStore.addFile(uploadFile.raw); // addFile 返回新创建的 store item
+      // 同步 el-upload 内部列表项的 uid, 以便后续操作能正确找到 store 中的项
+      // uploadFile.uid = addedFile.uid; // 这行可能不需要，因为v-model会同步
+    }
+  }
+};
+
+const handleFileRemove = (uploadFile, uploadFiles) => {
+  // uploadFile 是被移除的文件对象
+  filesStore.removeFileByUid(uploadFile.uid);
+  ElMessage.success(`移除了文件: ${uploadFile.name}`);
+};
+
+// 手动上传所有准备好的文件
+const handleUploadAllFiles = async () => {
+  const filesToUpload = filesStore.fileList.filter(f => f.status === 'ready' || f.status === 'error');
+  if (filesToUpload.length === 0) {
+    ElMessage.info('没有需要上传的文件。');
+    return;
+  }
+
+  for (const fileItem of filesToUpload) {
+    await uploadFile(fileItem, filesStore); // uploadFile 是从 hook 中获取的
+  }
+  ElMessage.success('所有选定文件已尝试上传。');
+};
+
+// --- 文件上传相关结束 --- 
 
 </script>
 
@@ -1241,5 +1274,42 @@ const handleNJUAuthSubmit = async () => {
 .warning-icon {
   margin-right: 6px;
   font-size: 16px;
+}
+
+/* 文件上传列表项样式 */
+:deep(.el-upload-list__item) {
+  transition: background-color 0.3s ease;
+}
+
+:deep(.el-upload-list__item .el-progress) {
+  position: absolute;
+  top: 20px;
+  left: 70px;
+  width: calc(100% - 80px);
+  /* 调整以适应布局 */
+}
+
+:deep(.el-upload-list__item .el-upload-list__item-name) {
+  margin-right: 40px;
+  /* 为删除按钮腾出空间 */
+}
+
+:deep(.el-upload-list__item-status-label) {
+  position: absolute;
+  right: 5px;
+  top: 5px;
+  line-height: inherit;
+}
+
+:deep(.el-upload-list__item .el-icon--close) {
+  position: absolute;
+  top: 50%;
+  right: 5px;
+  margin-top: -7px;
+  /* Vertically center */
+}
+
+.upload-button-group {
+  margin-top: 15px;
 }
 </style>

@@ -19,3 +19,6 @@ export const add_group_url = `${base_url}/api/update_group`
 export const add_persons_url = `${base_url}/api/update_persons`
 //爬虫相关api
 export const crawl_nju_class_url = `${base_url}/api/crawl_nju_class`
+
+//文件相关url
+export const upload_file_url = `${base_url}/api/upload_file`
