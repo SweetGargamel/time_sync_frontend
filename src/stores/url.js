@@ -22,3 +22,9 @@ export const crawl_nju_class_url = `${base_url}/api/crawl_nju_class`
 
 //文件相关url
 export const upload_file_url = `${base_url}/api/upload_file`
+
+//查看日程的url
+export const view_events_url = `${base_url} /api/view_events`
+
+//删除后端事件的url
+export const delete_event_url = `${base_url}/api/delete_event`

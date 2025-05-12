@@ -18,7 +18,7 @@
             </el-icon>
             等待修改结果返回时请不要刷新页面
         </el-text>
-        <el-table v-if="activeTable === 'person'" :data="personList" border style="width: 100%; margin-top: 20px;"
+        <el-table v-if="activeTable === 'person'" :data="pagedPersonList" border style="width: 100%; margin-top: 20px;"
             table-layout="auto">
             <el-table-column prop="id" label="ID" width="180" :resizable="false" />
             <el-table-column prop="name" label="姓名" width="180" :resizable="false" />
@@ -41,6 +41,11 @@
                 </template>
             </el-table-column>
         </el-table>
+        <el-pagination v-if="activeTable === 'person'" v-model:current-page="currentPagePerson"
+            v-model:page-size="pageSizePerson" :page-sizes="[15, 30, 50, 100]"
+            layout="total, sizes, prev, pager, next, jumper" :total="personList.length"
+            @size-change="handleSizeChangePerson" @current-change="handleCurrentChangePerson"
+            style="margin-top: 20px; justify-content: flex-end;" />
 
         <!-- 编辑人员弹窗 -->
         <el-dialog v-model="editDialogVisible" title="编辑人员信息" width="400px">
@@ -65,7 +70,7 @@
         </el-dialog>
 
         <!-- 组表格 -->
-        <el-table v-if="activeTable === 'group'" :data="groupList" border style="width: 100%; margin-top: 20px;"
+        <el-table v-if="activeTable === 'group'" :data="pagedGroupList" border style="width: 100%; margin-top: 20px;"
             table-layout="auto">
             <el-table-column prop="id" label="ID" width="180" :resizable="false" />
             <el-table-column prop="gname" label="组名" width="180" :resizable="false" />
@@ -88,6 +93,11 @@
                 </template>
             </el-table-column>
         </el-table>
+        <el-pagination v-if="activeTable === 'group'" v-model:current-page="currentPageGroup"
+            v-model:page-size="pageSizeGroup" :page-sizes="[1, 2, 3, 5]"
+            layout="total, sizes, prev, pager, next, jumper" :total="groupList.length"
+            @size-change="handleSizeChangeGroup" @current-change="handleCurrentChangeGroup"
+            style="margin-top: 20px; justify-content: flex-end;" />
 
         <!-- 编辑组弹窗 -->
         <el-dialog v-model="editGroupDialogVisible" title="编辑组信息" width="400px">
@@ -167,6 +177,14 @@ import { v4 as uuidv4 } from 'uuid'
 const store = usePersonGroupStore()
 const activeTable = ref('person') // 默认显示人员表格
 
+// 分页相关 - 人员
+const currentPagePerson = ref(1)
+const pageSizePerson = ref(15)
+
+// 分页相关 - 组
+const currentPageGroup = ref(1)
+const pageSizeGroup = ref(1)
+
 // 新增：自定义校验学号是否重复
 const validatePersonId = (rule, value, callback) => {
     if (value && personList.value.some(person => person.id === value)) {
@@ -179,6 +197,20 @@ const validatePersonId = (rule, value, callback) => {
 // 计算属性
 const personList = computed(() => store.person_list)
 const groupList = computed(() => store.group_list)
+
+// 计算属性 - 分页后的人员列表
+const pagedPersonList = computed(() => {
+    const start = (currentPagePerson.value - 1) * pageSizePerson.value
+    const end = start + pageSizePerson.value
+    return personList.value.slice(start, end)
+})
+
+// 计算属性 - 分页后的组列表
+const pagedGroupList = computed(() => {
+    const start = (currentPageGroup.value - 1) * pageSizeGroup.value
+    const end = start + pageSizeGroup.value
+    return groupList.value.slice(start, end)
+})
 
 // 编辑弹窗相关
 const editDialogVisible = ref(false)
@@ -498,6 +530,24 @@ const handleAddGroupCancel = () => {
     addGroupDialogVisible.value = false
 }
 
+// 分页处理函数 - 人员
+const handleSizeChangePerson = (val) => {
+    pageSizePerson.value = val
+    currentPagePerson.value = 1 // 切换每页数量时，重置到第一页
+}
+const handleCurrentChangePerson = (val) => {
+    currentPagePerson.value = val
+}
+
+// 分页处理函数 - 组
+const handleSizeChangeGroup = (val) => {
+    pageSizeGroup.value = val
+    currentPageGroup.value = 1 // 切换每页数量时，重置到第一页
+}
+const handleCurrentChangeGroup = (val) => {
+    currentPageGroup.value = val
+}
+
 // 组件挂载时获取数据
 onMounted(async () => {
     try {
@@ -590,5 +640,25 @@ onMounted(async () => {
     background-color: #f3e6f7 !important;
     color: #824082 !important;
     border-color: #824082 !important;
+}
+
+/* 分页组件激活状态颜色 */
+:deep(.el-pagination.is-background .el-pager li:not(.is-disabled).is-active) {
+    background-color: #824082 !important;
+    /* 背景色 */
+    color: var(--el-color-white) !important;
+    /* 文字颜色 */
+}
+
+/* 分页组件按钮悬浮颜色 */
+:deep(.el-pagination.is-background .el-pager li:hover) {
+    color: #824082 !important;
+    /* 文字颜色 */
+}
+
+/* 分页组件按钮默认颜色 */
+:deep(.el-pagination.is-background .btn-prev:not(:disabled):hover),
+:deep(.el-pagination.is-background .btn-next:not(:disabled):hover) {
+    color: #824082 !important;
 }
 </style>

@@ -4,7 +4,7 @@ import { v4 as uuidv4 } from 'uuid'
 
 export const useFilesStore = defineStore('files', () => {
   const fileList = ref([]) // { id: string, name: string, raw: File, status: 'ready' | 'uploading' | 'success' | 'error', progress: number, response: any, uid: string }
-
+  const file_id_list = ref([])
   const addFile = (file) => {
     const newFile = {
       id: uuidv4(),

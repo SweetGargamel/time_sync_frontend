@@ -2,95 +2,93 @@
   <div class="upload">
     <h2>录入日程信息</h2>
 
-    <div class="form-container">
-      <div class="left-section">
+    <div class="user-upload card-shadow">
+      <el-form :inline="false" :model="events_store.scheduleForm" class="demo-form-inline">
+        <el-form-item>
+          <el-text type="warning">
+            <el-icon class="warning-icon">
+              <Warning />
+            </el-icon>
+            这里我们暂时只允许用户输入8:00-22:00的日程（与学校的上课时间段基本一致）
+          </el-text>
+          <el-text type="warning">
+            <el-icon class="warning-icon">
+              <Warning />
+            </el-icon>
+            您手动新增日程后需要在最下方的日程列表中再提交日程
+          </el-text>
 
-        <el-form :inline="true" :model="events_store.scheduleForm" class="demo-form-inline">
-          <el-form-item>
-            <el-text type="warning">
-              <el-icon class="warning-icon">
-                <Warning />
-              </el-icon>
-              这里我们暂时只允许用户输入8:00-22:00的日程（与学校的上课时间段基本一致）
-            </el-text>
-            <el-text type="warning">
-              <el-icon class="warning-icon">
-                <Warning />
-              </el-icon>
-              您手动新增日程后需要在最下方的日程列表中再提交日程
-            </el-text>
-          </el-form-item>
-          <el-form-item label="选择组">
-            <el-select v-model="events_store.scheduleForm.selectedGroups" multiple filterable placeholder="请选择组"
-              style="width: 340px">
-              <el-option v-for="group in groupList" :key="group.id" :label="group.gname" :value="group.id">
-                <span style="float: left">{{ group.gname }}</span>
-                <span style="float: right; color: var(--el-text-color-secondary); font-size: 13px">
-                  {{ group.id }}
-                </span>
-              </el-option>
-            </el-select>
-          </el-form-item>
+        </el-form-item>
+        <el-form-item label="选择组">
+          <el-select v-model="events_store.scheduleForm.selectedGroups" multiple filterable placeholder="请选择组"
+            style="width: 340px">
+            <el-option v-for="group in groupList" :key="group.id" :label="group.gname" :value="group.id">
+              <span style="float: left">{{ group.gname }}</span>
+              <span style="float: right; color: var(--el-text-color-secondary); font-size: 13px">
+                {{ group.id }}
+              </span>
+            </el-option>
+          </el-select>
+        </el-form-item>
 
-          <el-form-item label="选择人员">
-            <el-select v-model="events_store.scheduleForm.selectedPersons" multiple filterable placeholder="请选择人员"
-              style="width: 500px">
-              <el-option v-for="person in personList" :key="person.id" :label="person.name" :value="person.id">
-                <span style="float: left">{{ person.name }}</span>
-                <span style="float: right; color: var(--el-text-color-secondary); font-size: 13px">
-                  {{ person.id }}
-                </span>
-              </el-option>
-            </el-select>
-          </el-form-item>
+        <el-form-item label="选择人员">
+          <el-select v-model="events_store.scheduleForm.selectedPersons" multiple filterable placeholder="请选择人员"
+            style="width: 500px">
+            <el-option v-for="person in personList" :key="person.id" :label="person.name" :value="person.id">
+              <span style="float: left">{{ person.name }}</span>
+              <span style="float: right; color: var(--el-text-color-secondary); font-size: 13px">
+                {{ person.id }}
+              </span>
+            </el-option>
+          </el-select>
+        </el-form-item>
 
-          <el-button type="primary"
-            @click="events_store.dialogVisible = true, events_store.isEdit = false">手动添加日程到最下方待提交区</el-button>
-          <el-button type="primary" @click="showNJUAuthDialog">录入您的南大课表信息</el-button>
-        </el-form>
-      </div>
+        <el-button type="primary"
+          @click="events_store.dialogVisible = true, events_store.isEdit = false">手动添加日程到最下方待提交区</el-button>
+        <el-button type="primary" @click="showNJUAuthDialog">录入您的南大课表信息</el-button>
+      </el-form>
+    </div>
 
-      <el-divider direction="vertical" style="height: auto;" />
-
-      <div class="right-section">
+    <div class="LLM-upload-section card-shadow">
+      <div class="llm-flex-row">
         <!-- 智能提取日程 -->
         <div class="extract-section">
+          <h3>使用Agent解析日程</h3>
+
           <div class="extract-header">
-            <el-button type="primary" plain size="small" @click="editDialogVisible = true">
+            <el-button class="edit-all-text" type="primary" plain size="small" @click="editDialogVisible = true">
               <el-icon>
                 <Edit />
               </el-icon>
               点我编辑全文
             </el-button>
           </div>
-          <el-input v-model="extractText" type="textarea" :autosize="{ minRows: 2 }" maxlength="2000" show-word-limit
+          <el-input v-model="extractText" type="textarea" :autosize="{ minRows: 10 }" maxlength="2000" show-word-limit
             placeholder="请输入要提取的文本" />
+
+        </div>
+        <el-divider direction="vertical" class="llm-divider" />
+        <!-- 上传文件部分应该放在这里 -->
+        <div class="file-section">
+          <h3>上传相关文档</h3>
+          <el-upload v-model:file-list="filesStore.fileList" class="upload-demo llm-upload-purple" drag action="#"
+            multiple :auto-upload="false" :on-change="handleFileChange" :on-remove="handleFileRemove"
+            accept=".pdf,.doc,.docx,.ppt,.pptx,.jpg,.jpeg,.png,.gif,.bmp,.webp">
+            <el-icon class="el-icon--upload"><upload-filled /></el-icon>
+            <div class="el-upload__text">
+              将文件拖到此处或 <em>点击上传</em>
+            </div>
+            <template #tip>
+              <div class="el-upload__tip">
+                请上传 PDF, Word, PPT 或常见图片格式文件 (单个文件不超过 5MB)
+              </div>
+            </template>
+          </el-upload>
           <el-button type="primary" style="margin-top: 10px;" @click="handleExtract">AI智能提取日程</el-button>
         </div>
       </div>
-
-
     </div>
-    <!-- 上传文件部分应该放在这里 -->
-    <div class="file-section">
-      <h3>上传相关文档</h3>
-      <el-upload v-model:file-list="filesStore.fileList" class="upload-demo" drag action="#" multiple
-        :auto-upload="false" :on-change="handleFileChange" :on-remove="handleFileRemove"
-        accept=".pdf,.doc,.docx,.ppt,.pptx,.jpg,.jpeg,.png,.gif,.bmp,.webp">
-        <el-icon class="el-icon--upload"><upload-filled /></el-icon>
-        <div class="el-upload__text">
-          将文件拖到此处或 <em>点击上传</em>
-        </div>
-        <template #tip>
-          <div class="el-upload__tip">
-            请上传 PDF, Word, PPT 或常见图片格式文件 (单个文件不超过 5MB)
-          </div>
-        </template>
-      </el-upload>
-      <div class="upload-button-group">
-        <el-button type="primary" @click="handleUploadAllFiles">全部上传</el-button>
-      </div>
-    </div>
+
     <!-- 编辑文本对话框 -->
     <el-dialog v-model="editDialogVisible" title="编辑文本" width="50%" draggable>
       <el-form>
@@ -106,7 +104,6 @@
         </span>
       </template>
     </el-dialog>
-
 
     <!-- 添加 LLM_asking_events 表格 -->
     <div class="table-section">
@@ -184,7 +181,6 @@
         <el-button type="danger" @click="handleDeleteAllofLLM">一键删除所有</el-button>
         <el-button type="warning" @click="handleDeleteAllFailedofLLM">一键删除所有失败项</el-button>
         <el-button type="success" @click="handleDeleteAllSuccessofLLM">一键删除所有成功项</el-button>
-
       </div>
     </div>
 
@@ -568,15 +564,11 @@ const handleEdit = (index, row) => {
   events_store.dialogVisible = true
 }
 
-
-
 const handleCancelofdialog = function () {
   events_store.dialogVisible = false
 
   events_store.currentEditIndex = -1  // 重置编辑索引
 }
-
-
 
 // 辅助函数：判断人员是否存在于其他选中组
 const isPersonInGroups = (personId, selectedGroups) => {
@@ -685,8 +677,6 @@ watch(() => events_store.scheduleForm.selectedPersons, async (newPersons, oldPer
   }
 }, { deep: true })
 
-
-
 // 打开编辑对话框时，将当前文本复制到编辑区
 watch(() => editDialogVisible.value, (newVal) => {
   if (newVal) {
@@ -723,6 +713,23 @@ const handleExtract = async () => {
       return
     }
 
+    // 上传所有文件
+    const filesToUpload = filesStore.fileList.filter(f => f.status === 'ready' || f.status === 'error')
+    const uploadedFileIds = []
+
+    for (const fileItem of filesToUpload) {
+      try {
+        await uploadFile(fileItem, filesStore)
+        if (fileItem.status === 'success') {
+          uploadedFileIds.push(fileItem.id)
+          ElMessage.success(`${fileItem.name} 上传成功`)
+        }
+      } catch (error) {
+        console.error(`文件 ${fileItem.name} 上传失败:`, error)
+        ElMessage.error(`${fileItem.name} 上传失败`)
+      }
+    }
+
     // 生成唯一ID和时间戳
     const id = uuidv4()
     const timestamp = new Date().toISOString()
@@ -734,7 +741,8 @@ const handleExtract = async () => {
       status: 'processing',
       event_string: extractText.value,
       persons: events_store.scheduleForm.selectedPersons,
-      groups: events_store.scheduleForm.selectedGroups
+      groups: events_store.scheduleForm.selectedGroups,
+      files: uploadedFileIds
     }
 
     // 发送请求
@@ -743,8 +751,10 @@ const handleExtract = async () => {
     // 将对象添加到 LLM_asking_events 数组
     events_store.LLM_asking_events.push(LLM_asking_event)
 
-    // 清空文本框
+    // 清空文本框和文件列表
     extractText.value = ''
+    filesStore.fileList = []
+    filesStore.file_id_list = []
 
     ElMessage.success('提交成功，请耐心等待结果')
   } catch (error) {
@@ -921,30 +931,12 @@ const handleFileRemove = (uploadFile, uploadFiles) => {
   ElMessage.success(`移除了文件: ${uploadFile.name}`);
 };
 
-// 手动上传所有准备好的文件
-const handleUploadAllFiles = async () => {
-  const filesToUpload = filesStore.fileList.filter(f => f.status === 'ready' || f.status === 'error');
-  if (filesToUpload.length === 0) {
-    ElMessage.info('没有需要上传的文件。');
-    return;
-  }
-
-  for (const fileItem of filesToUpload) {
-    await uploadFile(fileItem, filesStore); // uploadFile 是从 hook 中获取的
-  }
-  ElMessage.success('所有选定文件已尝试上传。');
-};
-
-// --- 文件上传相关结束 --- 
-
 </script>
 
 <style scoped>
 .upload {
   padding: 20px;
   padding-right: 100px;
-  /* background: #f7f9fb; */
-  /* 整个页面的背景色 */
   min-height: 100vh;
   max-width: 1600px;
   margin: 0 auto;
@@ -957,13 +949,16 @@ const handleUploadAllFiles = async () => {
   color: var(--el-text-color-primary);
 }
 
-.search-form,
-.recommend-table {
+.card-shadow {
   background-color: #fff;
   border-radius: 8px;
-  padding: 20px;
-  margin-bottom: 20px;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.05);
+  padding: 24px;
+  margin-bottom: 20px;
+}
+
+.user-upload {
+  margin-bottom: 32px;
 }
 
 .demo-form-inline {
@@ -972,294 +967,85 @@ const handleUploadAllFiles = async () => {
   margin: 0;
 }
 
-/* 智能提取区域样式 */
-.extract-section {
-  background-color: transparent;
-  padding: 0;
-  box-shadow: none;
-  margin: 0;
-  width: 100%;
-  max-height: 100%;
-}
-
-.extract-section .el-textarea {
-  margin-bottom: 10px;
-}
-
-:deep(.el-textarea__inner) {
-  min-height: 120px !important;
-  max-height: 120px !important;
-}
-
-/* 表格区域样式 */
-.table-section {
-  background-color: #fff;
-  /* 表格区域的背景色 */
-  padding: 24px;
-  border-radius: 8px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.05);
-  /* 表格区域的阴影 */
-  margin: 20px 0;
-}
-
-.table-section h3 {
-  margin-bottom: 20px;
-  font-size: 18px;
-  font-weight: 600;
-  color: var(--el-text-color-primary);
-}
-
-/* 表格样式优化 */
-:deep(.el-table) {
-  --el-table-border-color: var(--el-border-color-lighter);
-  --el-table-header-bg-color: var(--el-fill-color-light);
-  /* 表格头部背景色 */
-}
-
-:deep(.el-table th) {
-  background-color: var(--el-table-header-bg-color);
-  /* 表格头部背景色 */
-  color: var(--el-text-color-primary);
-  font-weight: 600;
-  font-size: 14px;
-  padding: 12px 0;
-}
-
-:deep(.el-table td) {
-  padding: 12px 0;
-}
-
-/* 表单项样式优化 */
-:deep(.el-form--inline .el-form-item) {
-  margin-right: 32px;
-  margin-bottom: 20px;
-}
-
-:deep(.el-form--inline) {
+.llm-flex-row {
   display: flex;
-  flex-wrap: wrap;
-  gap: 8px 16px;
-}
-
-/* 按钮组样式 */
-.button-group {
-  margin: 20px 0;
-  display: flex;
-  gap: 12px;
-}
-
-/* 标签样式优化 */
-:deep(.el-tag) {
-  margin: 4px;
-}
-
-.text-center {
-  text-align: center;
-}
-
-:deep(.el-table__fixed-right) {
-  height: 100% !important;
-}
-
-:deep(.el-table__fixed-right::before) {
-  background-color: var(--el-table-border-color);
-}
-
-.form-container {
-  display: flex;
-  gap: 40px;
-  align-items: flex-start;
-  background-color: #fff;
-  padding: 24px;
-  border-radius: 8px;
-  margin-bottom: 20px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.05);
-}
-
-.left-section {
-  flex: 1;
-  min-width: 0;
-}
-
-.right-section {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  align-items: flex-start;
+  flex-direction: row;
+  align-items: stretch;
+  gap: 0;
+  /* min-height: 400px; */
 }
 
 .extract-section {
-  background-color: transparent;
-  padding: 0;
-  box-shadow: none;
+  flex: 1;
+  min-width: 0;
+  margin-right: 0;
+  padding-right: 24px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+}
+
+.file-section {
+  flex: 1;
+  min-width: 0;
+  padding-left: 24px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+}
+
+.llm-divider {
   margin: 0;
-  width: 100%;
-  max-height: 100%;
-}
-
-.extract-section .el-textarea {
-  margin-bottom: 10px;
-}
-
-:deep(.el-textarea__inner) {
-  min-height: 120px !important;
-  max-height: 120px !important;
-}
-
-.extract-header {
-  display: flex;
-  justify-content: flex-end;
-  margin-bottom: 10px;
-}
-
-.dialog-footer {
-  display: flex;
-  justify-content: flex-end;
-  gap: 10px;
-}
-
-:deep(.el-dialog__body) {
-  padding: 20px;
-}
-
-:deep(.el-dialog .el-textarea__inner) {
-  min-height: 550px !important;
   height: auto !important;
-  resize: vertical;
+  align-self: stretch;
 }
 
-:deep(.el-dialog) {
-  margin: 50px auto !important;
+.llm-upload-purple {
+  --el-color-primary: #824082 !important;
+  --el-upload-dragger-border-color: #824082 !important;
+  --el-upload-dragger-bg-color: #f3e6f7 !important;
+  --el-upload-dragger-hover-border-color: #824082 !important;
+  --el-upload-list-hover-bg-color: #f3e6f7 !important;
 }
 
-/* 添加分割线样式 */
-:deep(.el-divider--vertical) {
-  height: auto;
-  margin: 0 20px;
-  border-left: 1px solid #909399;
-  background-color: #fff;
+:deep(.el-upload) {
+  --el-color-primary: #824082 !important;
 }
 
-:deep(.el-divider--horizontal) {
-  background-color: #fff;
-  border-top: 1px solid #909399;
-  margin: 20px 0;
-}
-
-.reason-input-height :deep(.el-textarea__inner) {
-  min-height: 50px !important;
-  max-height: 100px !important;
-  height: 50px !important;
-}
-
-/* 紫色主题按钮，覆盖 Element Plus primary 按钮颜色 */
-:deep(.el-button--primary) {
-  background-color: #824082 !important;
-  border-color: #824082 !important;
-  color: #fff !important;
-}
-
-:deep(.el-button--primary:hover),
-:deep(.el-button--primary:focus) {
-  background-color: #fff !important;
-  color: #824082 !important;
-  border-color: #824082 !important;
-}
-
-/* 点我编辑全文按钮（plain）紫色主题 */
-:deep(.el-button--primary.is-plain) {
-  background-color: #824082 !important;
-  color: #fff !important;
-  border-color: #824082 !important;
-}
-
-:deep(.el-button--primary.is-plain:hover),
-:deep(.el-button--primary.is-plain:focus) {
-  background-color: #fff !important;
-  color: #824082 !important;
-  border-color: #824082 !important;
-}
-
-/* 取消按钮（info类型，紫色边框和文字） */
-:deep(.el-button--info) {
-  background-color: #f3e6f7 !important;
-  color: #824082 !important;
-  border-color: #824082 !important;
-}
-
-:deep(.el-button--info:hover),
-:deep(.el-button--info:focus) {
-  background-color: #e0c6e6 !important;
-  color: #824082 !important;
-  border-color: #824082 !important;
-}
-
-/* 重新尝试按钮（warning类型，柔和橙色） */
-:deep(.el-button--warning) {
-  background-color: #824082 !important;
-  border-color: #824082 !important;
-  color: #fff !important;
-}
-
-/* :deep(.el-button--warning:hover),
-:deep(.el-button--warning:focus) {
-  background-color: #ffd699 !important;
-  color: #b26a00 !important;
-  border-color: #ffb84d !important;
-} */
-
-/* 提交按钮（success类型，淡紫色风格） */
-:deep(.el-button--success) {
-  background-color: #f3e6f7 !important;
-  color: #824082 !important;
-  border-color: #824082 !important;
-}
-
-:deep(.el-button--success:hover),
-:deep(.el-button--success:focus) {
-  background-color: #e0c6e6 !important;
-  color: #824082 !important;
-  border-color: #824082 !important;
-}
-
-/* 紫色标签样式 */
-:deep(.el-tag.nju-purple) {
-  background-color: #f3e6f7 !important;
-  color: #824082 !important;
-  border-color: #824082 !important;
-}
-
-/* 正在提取的日程信息 success 状态标签为淡紫色 */
-/* :deep(.el-tag.el-tag--success) {
-  background-color: #f3e6f7 !important;
-  color: #824082 !important;
-  border-color: #824082 !important;
-} */
-
-/* el-select 选中项和下拉菜单为紫色 */
-:deep(.el-select-dropdown__item.selected),
-:deep(.el-select-dropdown__item.hover),
-:deep(.el-select-dropdown__item.is-hover) {
-  background-color: #f3e6f7 !important;
+:deep(.el-upload__text) {
   color: #824082 !important;
 }
 
-:deep(.el-select .el-input.is-focus .el-input__wrapper) {
-  box-shadow: 0 0 0 2px #82408233 !important;
-  border-color: #824082 !important;
+:deep(.el-upload__tip) {
+  color: #824082 !important;
 }
 
-:deep(.el-select .el-input__wrapper) {
-  border-color: #824082 !important;
-}
-
-/* el-dialog 取消按钮悬浮时阴影为紫色 */
-:deep(.el-dialog__footer .el-button:not(.el-button--primary):hover) {
-  box-shadow: 0 2px 8px 0 #82408233 !important;
+:deep(.el-upload-list__item) {
+  background: #f3e6f7 !important;
   border-color: #824082 !important;
   color: #824082 !important;
 }
 
+:deep(.el-upload-list__item .el-icon--close) {
+  color: #824082 !important;
+}
+
+:deep(.el-upload-dragger) {
+  border: 2px dashed #824082 !important;
+  background: #f3e6f7 !important;
+  color: #824082 !important;
+}
+
+:deep(.el-upload-dragger:hover) {
+  border-color: #824082 !important;
+  background: #e0c6e6 !important;
+}
+
+.upload-button-group {
+  margin-top: 15px;
+}
+
+/* 保留警告文本和图标样式 */
 .warning-text {
   display: flex;
   align-items: center;
@@ -1276,40 +1062,99 @@ const handleUploadAllFiles = async () => {
   font-size: 16px;
 }
 
-/* 文件上传列表项样式 */
-:deep(.el-upload-list__item) {
-  transition: background-color 0.3s ease;
+/* 保留紫色主题按钮、标签等样式 */
+:deep(.el-button--primary) {
+  background-color: #824082 !important;
+  border-color: #824082 !important;
+  color: #fff !important;
 }
 
-:deep(.el-upload-list__item .el-progress) {
-  position: absolute;
-  top: 20px;
-  left: 70px;
-  width: calc(100% - 80px);
-  /* 调整以适应布局 */
+:deep(.el-button--primary:hover),
+:deep(.el-button--primary:focus) {
+  background-color: #fff !important;
+  color: #824082 !important;
+  border-color: #824082 !important;
 }
 
-:deep(.el-upload-list__item .el-upload-list__item-name) {
-  margin-right: 40px;
-  /* 为删除按钮腾出空间 */
+:deep(.el-button--primary.is-plain) {
+  background-color: #824082 !important;
+  color: #fff !important;
+  border-color: #824082 !important;
 }
 
-:deep(.el-upload-list__item-status-label) {
-  position: absolute;
-  right: 5px;
-  top: 5px;
-  line-height: inherit;
+:deep(.el-button--primary.is-plain:hover),
+:deep(.el-button--primary.is-plain:focus) {
+  background-color: #fff !important;
+  color: #824082 !important;
+  border-color: #824082 !important;
 }
 
-:deep(.el-upload-list__item .el-icon--close) {
-  position: absolute;
-  top: 50%;
-  right: 5px;
-  margin-top: -7px;
-  /* Vertically center */
+:deep(.el-button--info) {
+  background-color: #f3e6f7 !important;
+  color: #824082 !important;
+  border-color: #824082 !important;
 }
 
-.upload-button-group {
-  margin-top: 15px;
+:deep(.el-button--info:hover),
+:deep(.el-button--info:focus) {
+  background-color: #e0c6e6 !important;
+  color: #824082 !important;
+  border-color: #824082 !important;
+}
+
+:deep(.el-button--warning) {
+  background-color: #824082 !important;
+  border-color: #824082 !important;
+  color: #fff !important;
+}
+
+:deep(.el-button--success) {
+  background-color: #f3e6f7 !important;
+  color: #824082 !important;
+  border-color: #824082 !important;
+}
+
+:deep(.el-button--success:hover),
+:deep(.el-button--success:focus) {
+  background-color: #e0c6e6 !important;
+  color: #824082 !important;
+  border-color: #824082 !important;
+}
+
+:deep(.el-tag.nju-purple) {
+  background-color: #f3e6f7 !important;
+  color: #824082 !important;
+  border-color: #824082 !important;
+}
+
+:deep(.el-select-dropdown__item.selected),
+:deep(.el-select-dropdown__item.hover),
+:deep(.el-select-dropdown__item.is-hover) {
+  background-color: #f3e6f7 !important;
+  color: #824082 !important;
+}
+
+:deep(.el-select .el-input.is-focus .el-input__wrapper) {
+  box-shadow: 0 0 0 2px #82408233 !important;
+  border-color: #824082 !important;
+}
+
+:deep(.el-select .el-input__wrapper) {
+  border-color: #824082 !important;
+}
+
+:deep(.el-dialog__footer .el-button:not(.el-button--primary):hover) {
+  box-shadow: 0 2px 8px 0 #82408233 !important;
+  border-color: #824082 !important;
+  color: #824082 !important;
+}
+
+/* 删除无用样式，保留核心结构和主题色相关部分 */
+.edit-all-text {
+  margin-bottom: 15px;
+}
+
+:deep(.el-divider--vertical) {
+  height: 100%
 }
 </style>
