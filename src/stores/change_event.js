@@ -1,7 +1,7 @@
 import { ref, computed } from 'vue'
 import { defineStore } from 'pinia'
 import axios, { all } from 'axios'
-import { view_events_url, LLM_change_events } from './url'
+import { view_events_url, LLM_change_events, delete_event_url } from './url'
 import { ElMessage } from 'element-plus'
 import dayjs from 'dayjs'
 
@@ -103,6 +103,19 @@ export const useChangeEventStore = defineStore('changeEvent', () => {
     }
   }
 
+  // 添加删除事件的action
+  async function delete_events_action(eventIds) {
+    try {
+      const response = await axios.post(delete_event_url, {
+        events: eventIds,
+      })
+      return response.data
+    } catch (error) {
+      console.error('删除事件失败:', error)
+      throw error
+    }
+  }
+
   return {
     events,
     isLoading,
@@ -112,5 +125,6 @@ export const useChangeEventStore = defineStore('changeEvent', () => {
     setSelectedPerson,
     getRawEventById,
     LLM_change_events_action,
+    delete_events_action,
   }
 })

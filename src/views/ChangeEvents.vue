@@ -124,6 +124,7 @@
         </div>
         <template #footer>
             <span class="dialog-footer">
+                <el-button type="danger" @click="handleDeleteEvent" :loading="deleteLoading">删除事件</el-button>
                 <el-button @click="showEventDialog = false">关闭</el-button>
             </span>
         </template>
@@ -170,6 +171,8 @@ const currentView = ref({
     start: null,
     end: null
 })
+
+const deleteLoading = ref(false)
 
 // 处理AI智能选人
 const handleLLMGroup = async () => {
@@ -373,6 +376,37 @@ watch(() => change_event_store.selectedPersonId, (newPersonId) => {
     }
 });
 
+// 添加删除事件的处理函数
+const handleDeleteEvent = async () => {
+    if (!selectedEvent.value) return
+
+    try {
+        deleteLoading.value = true
+        const response = await change_event_store.delete_events_action([selectedEvent.value.id])
+
+        if (response.code === 200) {
+            ElMessage.success('事件删除成功')
+            showEventDialog.value = false
+
+            // 刷新日程数据
+            if (change_event_store.selectedPersonId && currentView.value.start && currentView.value.end) {
+                await change_event_store.fetchEvents(
+                    change_event_store.selectedPersonId,
+                    currentView.value.start,
+                    currentView.value.end
+                )
+            }
+        } else {
+            ElMessage.error(response.msg || '删除失败')
+        }
+    } catch (error) {
+        console.error('删除事件失败:', error)
+        ElMessage.error('删除事件失败，请重试')
+    } finally {
+        deleteLoading.value = false
+    }
+}
+
 </script>
 
 <style scoped>
@@ -559,8 +593,17 @@ watch(() => change_event_store.selectedPersonId, (newPersonId) => {
     padding: 20px;
     background-color: #fff;
     border-radius: 12px;
-    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.05);
+    /* box-shadow: 0 2px 12px rgba(0, 0, 0, 0.05); */
 }
+
+.top-controls {
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.05);
+    background-color: #fff;
+    gap: 24px;
+    margin: 20px 0;
+    padding: 20px;
+}
+
 
 .form-group-left,
 .form-group-right {
