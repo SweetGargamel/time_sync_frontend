@@ -79,24 +79,26 @@
             @ready="onReady" @event-click="openEventDialog" ref="vueCalRef">
             <template #event-content="{ event }">
                 <div :style="{
-                    // background: event.backgroundColor, // 使用事件自带的背景色
-                    borderRadius: '10px',
-                    minHeight: '60px',
-                    boxShadow: '0 2px 8px rgba(0,0,0,0.10)',
-                    padding: '5px',
+                    borderRadius: '14px',
+                    minHeight: '70px',
+                    boxShadow: '0 4px 16px rgba(0,0,0,0.12)',
+                    padding: '12px 16px',
                     display: 'flex',
                     flexDirection: 'column',
                     justifyContent: 'center',
-                    transition: 'box-shadow 0.2s, transform 0.2s',
-                    color: '#fff', // 文字颜色设为白色以便在紫色背景上显示
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    whiteSpace: 'nowrap'
+                    background: 'linear-gradient(135deg, #824082 80%, #a678b4 100%)',
+                    color: '#fff',
+                    overflow: 'hidden'
                 }" class="custom-event-block">
-                    <div class="vuecal__event-title">{{ event.title }}</div>
-                    <div class="event-divider" style="border-top: 1px solid rgba(255,255,255,0.5); margin: 3px 0;">
+                    <div class="vuecal__event-title" style="font-size: 24px; font-weight: bold; margin-bottom: 6px;">
+                        {{ event.title }}
                     </div>
-                    <div class="vuecal__event-content" style="font-size: 10px;">{{ event.content }}</div>
+                    <div class="event-divider"
+                        style="border-top: 1px solid rgba(255,255,255,0.3); margin: 4px 0 8px 0;"></div>
+                    <div class="vuecal__event-content"
+                        style="font-size: 15px; line-height: 1.7; word-break: break-all; white-space: pre-line;">
+                        {{ event.content }}
+                    </div>
                 </div>
             </template>
         </vue-cal>
