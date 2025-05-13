@@ -1,7 +1,7 @@
 import { ref, computed } from 'vue'
 import { defineStore } from 'pinia'
 import axios, { all } from 'axios'
-import { view_events_url } from './url'
+import { view_events_url, LLM_change_events } from './url'
 import { ElMessage } from 'element-plus'
 import dayjs from 'dayjs'
 
@@ -89,6 +89,20 @@ export const useChangeEventStore = defineStore('changeEvent', () => {
     return allRawEvents.value.find((event) => event.id === eventId)
   }
 
+  // 添加LLM修改日程的action
+  async function LLM_change_events_action(user_need, persons_ids) {
+    try {
+      const response = await axios.post(LLM_change_events, {
+        user_need,
+        persons: persons_ids,
+      })
+      return response.data
+    } catch (error) {
+      console.error('修改日程失败:', error)
+      throw error
+    }
+  }
+
   return {
     events,
     isLoading,
@@ -97,5 +111,6 @@ export const useChangeEventStore = defineStore('changeEvent', () => {
     fetchEvents,
     setSelectedPerson,
     getRawEventById,
+    LLM_change_events_action,
   }
 })

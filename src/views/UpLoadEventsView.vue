@@ -3,50 +3,57 @@
     <h2>录入日程信息</h2>
 
     <div class="user-upload card-shadow">
-      <el-form :inline="false" :model="events_store.scheduleForm" class="demo-form-inline">
-        <el-form-item>
-          <el-text type="warning">
-            <el-icon class="warning-icon">
-              <Warning />
-            </el-icon>
-            这里我们暂时只允许用户输入8:00-22:00的日程（与学校的上课时间段基本一致）
-          </el-text>
-          <el-text type="warning">
-            <el-icon class="warning-icon">
-              <Warning />
-            </el-icon>
-            您手动新增日程后需要在最下方的日程列表中再提交日程
-          </el-text>
+      <div class="user-upload-left">
+        <el-form :inline="false" :model="events_store.scheduleForm" class="demo-form-inline">
+          <el-form-item>
+            <el-text type="warning">
+              <el-icon class="warning-icon">
+                <Warning />
+              </el-icon>
+              这里我们暂时只允许用户输入8:00-22:00的日程（与学校的上课时间段基本一致）
+            </el-text>
+            <el-text type="warning">
+              <el-icon class="warning-icon">
+                <Warning />
+              </el-icon>
+              您手动新增日程后需要在最下方的日程列表中再提交日程
+            </el-text>
 
-        </el-form-item>
-        <el-form-item label="选择组">
-          <el-select v-model="events_store.scheduleForm.selectedGroups" multiple filterable placeholder="请选择组"
-            style="width: 340px">
-            <el-option v-for="group in groupList" :key="group.id" :label="group.gname" :value="group.id">
-              <span style="float: left">{{ group.gname }}</span>
-              <span style="float: right; color: var(--el-text-color-secondary); font-size: 13px">
-                {{ group.id }}
-              </span>
-            </el-option>
-          </el-select>
-        </el-form-item>
+          </el-form-item>
+          <el-form-item label="选择组">
+            <el-select v-model="events_store.scheduleForm.selectedGroups" multiple filterable placeholder="请选择组"
+              style="width: 340px">
+              <el-option v-for="group in groupList" :key="group.id" :label="group.gname" :value="group.id">
+                <span style="float: left">{{ group.gname }}</span>
+                <span style="float: right; color: var(--el-text-color-secondary); font-size: 13px">
+                  {{ group.id }}
+                </span>
+              </el-option>
+            </el-select>
+          </el-form-item>
 
-        <el-form-item label="选择人员">
-          <el-select v-model="events_store.scheduleForm.selectedPersons" multiple filterable placeholder="请选择人员"
-            style="width: 500px">
-            <el-option v-for="person in personList" :key="person.id" :label="person.name" :value="person.id">
-              <span style="float: left">{{ person.name }}</span>
-              <span style="float: right; color: var(--el-text-color-secondary); font-size: 13px">
-                {{ person.id }}
-              </span>
-            </el-option>
-          </el-select>
-        </el-form-item>
+          <el-form-item label="选择人员">
+            <el-select v-model="events_store.scheduleForm.selectedPersons" multiple filterable placeholder="请选择人员"
+              style="width: 500px">
+              <el-option v-for="person in personList" :key="person.id" :label="person.name" :value="person.id">
+                <span style="float: left">{{ person.name }}</span>
+                <span style="float: right; color: var(--el-text-color-secondary); font-size: 13px">
+                  {{ person.id }}
+                </span>
+              </el-option>
+            </el-select>
+          </el-form-item>
 
-        <el-button type="primary"
-          @click="events_store.dialogVisible = true, events_store.isEdit = false">手动添加日程到最下方待提交区</el-button>
-        <el-button type="primary" @click="showNJUAuthDialog">录入您的南大课表信息</el-button>
-      </el-form>
+          <el-button type="primary"
+            @click="events_store.dialogVisible = true, events_store.isEdit = false">手动添加日程到最下方待提交区</el-button>
+          <el-button type="primary" @click="showNJUAuthDialog">录入您的南大课表信息</el-button>
+        </el-form>
+      </div>
+      <div class="user-upload-right">
+        <el-input v-model="group_text" type="textarea" :autosize="{ minRows: 5, maxRows: 8 }" maxlength="1000"
+          show-word-limit placeholder="请输入您的选人要求" />
+        <el-button type="primary" @click="handleLLMGroup">AI智能选人</el-button>
+      </div>
     </div>
 
     <div class="LLM-upload-section card-shadow">
@@ -410,6 +417,7 @@ import { ElMessage, ElLoading } from 'element-plus'
 import { useNjuCrawler } from '@/hooks/nju_crawler.js'
 import { useFilesStore } from '@/stores/files'
 import { useFileUploader } from '@/hooks/file_uploader'
+import { useLLMFormGroup } from '@/hooks/LLM_form_group'
 
 import { v4 as uuidv4 } from 'uuid'
 import { Edit, Warning } from '@element-plus/icons-vue'
@@ -931,6 +939,40 @@ const handleFileRemove = (uploadFile, uploadFiles) => {
   ElMessage.success(`移除了文件: ${uploadFile.name}`);
 };
 
+const { sendLLMFormGroupRequest } = useLLMFormGroup()
+const group_text = ref('')
+
+const handleLLMGroup = async () => {
+  if (!group_text.value.trim()) {
+    ElMessage.warning('请输入选人要求')
+    return
+  }
+
+  const loadingInstance = ElLoading.service({
+    lock: true,
+    text: '正在处理中，请稍候...',
+    background: 'rgba(0, 0, 0, 0.7)'
+  })
+
+  try {
+    const response = await sendLLMFormGroupRequest(group_text.value)
+    if (response.code === 200) {
+      // 清空原有选择
+      events_store.scheduleForm.selectedPersons = []
+      // 添加新选择的人员
+      events_store.scheduleForm.selectedPersons = response.persons
+      ElMessage.success('AI选人成功')
+    } else {
+      ElMessage.error(response.msg || 'AI选人失败')
+    }
+  } catch (error) {
+    console.error('AI选人失败:', error)
+    ElMessage.error('AI选人失败，请重试')
+  } finally {
+    loadingInstance.close()
+  }
+}
+
 </script>
 
 <style scoped>
@@ -959,6 +1001,21 @@ const handleFileRemove = (uploadFile, uploadFiles) => {
 
 .user-upload {
   margin-bottom: 32px;
+  display: flex;
+  gap: 24px;
+}
+
+.user-upload-left {
+  flex: 1;
+  min-width: 0;
+}
+
+.user-upload-right {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }
 
 .demo-form-inline {
