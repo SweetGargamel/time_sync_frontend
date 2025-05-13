@@ -122,8 +122,8 @@
         <div class="add-buttons" style="margin: 20px 0;">
             <el-button v-if="activeTable === 'person'" type="primary" @click="handleAddPerson">新增人员</el-button>
             <el-button v-if="activeTable === 'group'" type="primary" @click="handleAddGroup">新增组</el-button>
+            <el-button type="primary" @click="handle_AI_change_person_group">用AI帮助你智能管理</el-button>
         </div>
-
         <!-- 新增人员弹窗 -->
         <el-dialog v-model="addPersonDialogVisible" title="新增人员" width="400px">
             <el-form :model="addPersonForm" :rules="addPersonFormRules" ref="addPersonFormRef" label-width="80px">
@@ -165,6 +165,20 @@
                 <el-button type="primary" @click="handleAddGroupConfirm">确定</el-button>
             </template>
         </el-dialog>
+
+        <!-- AI管理对话框 -->
+        <el-dialog v-model="aiDialogVisible" title="AI智能管理" width="750px">
+            <el-form>
+                <el-form-item>
+                    <el-input v-model="aiUserNeed" type="textarea" :rows="6" placeholder="请输入您的需求，例如：'我要将张三从开甲组中移除'"
+                        maxlength="2000" show-word-limit :autosize="{ minRows: 10, maxRows: 15 }" />
+                </el-form-item>
+            </el-form>
+            <template #footer>
+                <el-button @click="handleAIDialogCancel">取消</el-button>
+                <el-button type="primary" @click="handleAIDialogConfirm">确定</el-button>
+            </template>
+        </el-dialog>
     </div>
 </template>
 
@@ -184,6 +198,10 @@ const pageSizePerson = ref(15)
 // 分页相关 - 组
 const currentPageGroup = ref(1)
 const pageSizeGroup = ref(1)
+
+// AI管理对话框相关
+const aiDialogVisible = ref(false)
+const aiUserNeed = ref('')
 
 // 新增：自定义校验学号是否重复
 const validatePersonId = (rule, value, callback) => {
@@ -546,6 +564,48 @@ const handleSizeChangeGroup = (val) => {
 }
 const handleCurrentChangeGroup = (val) => {
     currentPageGroup.value = val
+}
+
+// AI管理相关方法
+const handle_AI_change_person_group = () => {
+    aiDialogVisible.value = true
+}
+
+const handleAIDialogCancel = () => {
+    aiDialogVisible.value = false
+}
+
+const handleAIDialogConfirm = async () => {
+    aiDialogVisible.value = false
+    const loadingInstance = ElLoading.service({
+        lock: true,
+        text: '信息为后台正在操作中，请稍后',
+        background: 'rgba(0, 0, 0, 0.7)'
+    })
+
+    try {
+        const response = await fetch(LLM_change_person_group_url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                user_need: aiUserNeed.value
+            })
+        })
+        const data = await response.json()
+
+        if (data.code === 200) {
+            ElMessage.success(data.msg)
+            aiUserNeed.value = '' // 清空文本域
+        } else {
+            ElMessage.error(data.msg || '操作失败')
+        }
+    } catch (error) {
+        ElMessage.error('操作失败')
+    } finally {
+        loadingInstance.close()
+    }
 }
 
 // 组件挂载时获取数据
