@@ -181,24 +181,29 @@
             </template>
         </el-dialog>
 
-        <!-- AI智能录入人员信息对话框 -->
-        <el-dialog v-model="ai_person_DialogVisible" title="AI智能录入人员信息" width="500px">
-            <el-upload v-model:file-list="aiPersonFileList" class="upload-demo llm-upload-purple" drag action="#"
-                :auto-upload="false" :limit="1" :on-change="handleAIPersonFileChange"
-                :on-remove="handleAIPersonFileRemove" accept=".csv,.xlsx,.txt">
+        <!-- AI智能批量录入人员信息对话框 -->
+        <el-dialog v-model="ai_person_DialogVisible" title="智能批量录入人员信息" width="500px"
+            @close="handleAiPersonUploadCancel" id="ai-person-upload-dialog">
+            <el-upload ref="aiPersonUploadRef" v-model:file-list="aiPersonUploadFileList"
+                class="upload-demo llm-upload-purple" drag action="#" :auto-upload="false" :limit="1"
+                accept=".csv,.xlsx,.txt,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/plain"
+                :on-exceed="handleAiPersonUploadExceed" :on-change="handleAiPersonFileChange"
+                :on-remove="handleAiPersonFileRemove">
                 <el-icon class="el-icon--upload"><upload-filled /></el-icon>
                 <div class="el-upload__text">
                     将文件拖到此处或 <em>点击上传</em>
                 </div>
                 <template #tip>
                     <div class="el-upload__tip">
-                        请上传 CSV、Excel 或 TXT 格式文件 (单个文件不超过 5MB)
+                        请上传 CSV, XLSX 或 TXT 格式文件 (限制1个, 新文件将覆盖旧文件)
                     </div>
                 </template>
             </el-upload>
             <template #footer>
-                <el-button @click="handleAIPersonDialogCancel">取消</el-button>
-                <el-button type="primary" @click="handleAIPersonDialogConfirm">确定</el-button>
+                <span class="dialog-footer">
+                    <el-button @click="handleAiPersonUploadCancel">取消</el-button>
+                    <el-button type="primary" @click="handleAiPersonUploadSubmit">提交</el-button>
+                </span>
             </template>
         </el-dialog>
     </div>
@@ -207,12 +212,11 @@
 <script setup>
 import { ref, computed, onMounted, reactive } from 'vue'
 import { usePersonGroupStore } from '../stores/persongroup'
-import { ElMessage, ElLoading } from 'element-plus'
+import { ElMessage, ElLoading, genFileId } from 'element-plus'
 import { v4 as uuidv4 } from 'uuid'
-import { useFileUploader } from '@/hooks/file_uploader'
-import { useAIInsertPerson } from '@/hooks/AI_Insert_Personjs'
-import { useFilesStore } from '@/stores/files'
 import { UploadFilled } from '@element-plus/icons-vue'
+import { uploadAiExcelFile } from '@/hooks/submit_ai_excel.js'
+import { triggerAIInsertPerson } from '@/hooks/AI_Insert_Person.js'
 
 const store = usePersonGroupStore()
 const activeTable = ref('person') // 默认显示人员表格
@@ -230,11 +234,8 @@ const ai_person_DialogVisible = ref(false)
 const ai_group_DialogVisible = ref(false)
 const aiUserNeed = ref('')
 
-// AI智能录入人员信息相关
-const aiPersonFileList = ref([])
-const filesStore = useFilesStore()
-const { uploadFile } = useFileUploader()
-const { AIInsertPerson } = useAIInsertPerson()
+const aiPersonUploadFileList = ref([])
+const aiPersonUploadRef = ref()
 
 // 新增：自定义校验学号是否重复
 const validatePersonId = (rule, value, callback) => {
@@ -604,6 +605,10 @@ const AI_change_group = () => {
     ai_group_DialogVisible.value = true
 }
 const AI_Change_person = () => {
+    aiPersonUploadFileList.value = []
+    if (aiPersonUploadRef.value) {
+        aiPersonUploadRef.value.clearFiles()
+    }
     ai_person_DialogVisible.value = true
 }
 
@@ -644,80 +649,107 @@ const handleAIDialogConfirm = async () => {
     }
 }
 
-// AI智能录入人员信息相关
-const handleAIPersonFileChange = (uploadFile, uploadFiles) => {
-    if (uploadFile.status === 'ready') {
-        const allowedTypes = [
-            'text/csv',
-            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-            'text/plain'
-        ]
+const handleAiPersonUploadExceed = (files) => {
+    if (aiPersonUploadRef.value) {
+        aiPersonUploadRef.value.clearFiles();
+        const file = files[0];
+        file.uid = genFileId(); // Or use a simple unique ID logic if genFileId causes issues without full TS setup
+        aiPersonUploadRef.value.handleStart(file);
+    }
+};
 
-        if (!allowedTypes.includes(uploadFile.raw.type)) {
-            ElMessage.error('只支持 CSV、Excel 或 TXT 格式文件')
-            const index = uploadFiles.findIndex(f => f.uid === uploadFile.uid)
-            if (index !== -1) {
-                uploadFiles.splice(index, 1)
-            }
-            return
+const handleAiPersonFileChange = (uploadFile, uploadFiles) => {
+    // Limit to one file, new one replaces old one via on-exceed
+    // This is mainly to ensure our aiPersonUploadFileList is in sync if not using v-model directly or if other logic is needed.
+    // For limit 1, on-exceed should handle replacement.
+    // We can add client-side validation for type/size here if desired.
+    const allowedTypes = ['text/csv', 'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'text/plain'];
+    if (!allowedTypes.includes(uploadFile.raw.type) && uploadFile.status === 'ready') {
+        ElMessage.error('文件类型不支持! 请上传 CSV, XLSX, 或 TXT 文件。');
+        if (aiPersonUploadRef.value) {
+            aiPersonUploadRef.value.handleRemove(uploadFile); // Remove from el-upload's list
         }
+        aiPersonUploadFileList.value = uploadFiles.filter(f => f.uid !== uploadFile.uid); // Ensure our list is also updated
+        return false;
+    }
+    // If on-exceed works as expected, aiPersonUploadFileList (if v-modeled) should update.
+    // If not v-modeled, or to be absolutely sure:
+    if (uploadFiles.length > 0) {
+        aiPersonUploadFileList.value = [uploadFiles[uploadFiles.length - 1]]; // Keep only the last one
+    } else {
+        aiPersonUploadFileList.value = [];
+    }
+};
 
-        if (uploadFile.raw.size > 5 * 1024 * 1024) {
-            ElMessage.error('文件大小不能超过 5MB')
-            const index = uploadFiles.findIndex(f => f.uid === uploadFile.uid)
-            if (index !== -1) {
-                uploadFiles.splice(index, 1)
-            }
-            return
-        }
+const handleAiPersonFileRemove = (uploadFile, uploadFiles) => {
+    aiPersonUploadFileList.value = uploadFiles;
+};
 
-        if (!filesStore.getFileByUid(uploadFile.uid)) {
-            filesStore.addFile(uploadFile.raw)
-        }
+const handleAiPersonUploadCancel = () => {
+    ai_person_DialogVisible.value = false
+    aiPersonUploadFileList.value = []
+    if (aiPersonUploadRef.value) {
+        aiPersonUploadRef.value.clearFiles()
     }
 }
 
-const handleAIPersonFileRemove = (uploadFile) => {
-    filesStore.removeFileByUid(uploadFile.uid)
-    ElMessage.success(`移除了文件: ${uploadFile.name}`)
-}
+const handleAiPersonUploadSubmit = async () => {
+    if (aiPersonUploadFileList.value.length === 0) {
+        ElMessage.warning('请先选择一个文件');
+        return;
+    }
 
-const handleAIPersonDialogCancel = () => {
-    ai_person_DialogVisible.value = false
-    aiPersonFileList.value = []
-}
-
-const handleAIPersonDialogConfirm = async () => {
-    if (aiPersonFileList.value.length === 0) {
-        ElMessage.warning('请先选择文件')
-        return
+    const fileToUpload = aiPersonUploadFileList.value[0];
+    if (!fileToUpload.raw) {
+        ElMessage.error('无效的文件对象');
+        return;
     }
 
     const loadingInstance = ElLoading.service({
         lock: true,
-        text: '正在处理中，请稍候...',
-        background: 'rgba(0, 0, 0, 0.7)'
-    })
+        text: '正在处理文件，请稍候...',
+        background: 'rgba(0, 0, 0, 0.7)',
+        // target: document.querySelector('#ai-person-upload-dialog .el-dialog__body') || document.body // More robust target needed
+    });
 
     try {
-        const fileItem = aiPersonFileList.value[0]
-        await uploadFile(fileItem, filesStore)
+        const fileId = uuidv4();
+        const rawFile = fileToUpload.raw;
+        const fileName = fileToUpload.name;
 
-        if (fileItem.status === 'success') {
-            await AIInsertPerson(fileItem.id)
-            ElMessage.success('人员信息录入成功')
-            ai_person_DialogVisible.value = false
-            aiPersonFileList.value = []
+        // Step 1: Upload the file
+        ElMessage.info(`开始上传文件: ${fileName}`);
+        const uploadResult = await uploadAiExcelFile(rawFile, fileId, fileName);
+
+        if (uploadResult && uploadResult.success) {
+            ElMessage.success(`文件 ${fileName} 上传成功! ID: ${uploadResult.data.id}. 开始AI处理...`);
+
+            // Step 2: Trigger AI processing
+            const aiResult = await triggerAIInsertPerson(uploadResult.data.id);
+
+            if (aiResult && aiResult.success) {
+                ElMessage.success(aiResult.data.msg || 'AI智能录入人员成功！');
+                ai_person_DialogVisible.value = false;
+                aiPersonUploadFileList.value = [];
+                if (aiPersonUploadRef.value) {
+                    aiPersonUploadRef.value.clearFiles()
+                }
+                // Refresh person list
+                await store.query_person_list();
+                await store.query_group_list(); // Also refresh groups if they might be affected indirectly
+            } else {
+                ElMessage.error(aiResult.error || 'AI处理失败');
+            }
         } else {
-            ElMessage.error('文件上传失败')
+            // Error message handled by uploadAiExcelFile
         }
     } catch (error) {
-        console.error('处理失败:', error)
-        ElMessage.error('处理失败，请重试')
+        console.error('Error in AI person upload submission process:', error);
+        ElMessage.error('提交处理失败，请检查控制台');
     } finally {
-        loadingInstance.close()
+        loadingInstance.close();
     }
-}
+};
 
 // 组件挂载时获取数据
 onMounted(async () => {
@@ -774,16 +806,62 @@ onMounted(async () => {
     padding: 12px 0;
 }
 
-:deep(.el-tag) {
-    margin: 4px;
+:deep(.el-tag.nju-purple) {
+    background-color: #f3e6f7 !important;
+    color: #824082 !important;
+    border-color: #824082 !important;
 }
 
-:deep(.el-table__fixed-right) {
-    height: 100% !important;
+/* Styles for llm-upload-purple copied from UpLoadEventsView.vue */
+:deep(.llm-upload-purple .el-upload-dragger) {
+    border: 2px dashed #824082 !important;
+    background: #f3e6f7 !important;
+    color: #824082 !important;
 }
 
-:deep(.el-table__fixed-right::before) {
-    background-color: var(--el-table-border-color);
+:deep(.llm-upload-purple .el-upload-dragger:hover) {
+    border-color: #a05ca0 !important;
+    /* Adjusted hover color */
+    background: #e0c6e6 !important;
+}
+
+:deep(.llm-upload-purple .el-icon--upload) {
+    color: #824082 !important;
+}
+
+:deep(.llm-upload-purple .el-upload__text) {
+    color: #824082 !important;
+}
+
+:deep(.llm-upload-purple .el-upload__text em) {
+    color: #a05ca0 !important;
+    /* Adjusted em color */
+}
+
+:deep(.llm-upload-purple .el-upload__tip) {
+    color: #824082 !important;
+    font-size: 12px;
+    /* Consistent tip size */
+}
+
+:deep(.llm-upload-purple .el-upload-list__item) {
+    background: #f3e6f7 !important;
+    border: 1px solid #824082 !important;
+    color: #824082 !important;
+    margin-bottom: 8px;
+    /* Spacing for list items */
+}
+
+:deep(.llm-upload-purple .el-upload-list__item:hover) {
+    background: #e0c6e6 !important;
+}
+
+:deep(.llm-upload-purple .el-upload-list__item .el-icon--close) {
+    color: #824082 !important;
+}
+
+:deep(.llm-upload-purple .el-upload-list__item .el-icon--close:hover) {
+    color: #a05ca0 !important;
 }
 
 /* 紫色主题按钮，覆盖 Element Plus primary 按钮颜色 */
@@ -831,46 +909,5 @@ onMounted(async () => {
 :deep(.el-pagination.is-background .btn-prev:not(:disabled):hover),
 :deep(.el-pagination.is-background .btn-next:not(:disabled):hover) {
     color: #824082 !important;
-}
-
-.llm-upload-purple {
-    --el-color-primary: #824082 !important;
-    --el-upload-dragger-border-color: #824082 !important;
-    --el-upload-dragger-bg-color: #f3e6f7 !important;
-    --el-upload-dragger-hover-border-color: #824082 !important;
-    --el-upload-list-hover-bg-color: #f3e6f7 !important;
-}
-
-:deep(.el-upload) {
-    --el-color-primary: #824082 !important;
-}
-
-:deep(.el-upload__text) {
-    color: #824082 !important;
-}
-
-:deep(.el-upload__tip) {
-    color: #824082 !important;
-}
-
-:deep(.el-upload-list__item) {
-    background: #f3e6f7 !important;
-    border-color: #824082 !important;
-    color: #824082 !important;
-}
-
-:deep(.el-upload-list__item .el-icon--close) {
-    color: #824082 !important;
-}
-
-:deep(.el-upload-dragger) {
-    border: 2px dashed #824082 !important;
-    background: #f3e6f7 !important;
-    color: #824082 !important;
-}
-
-:deep(.el-upload-dragger:hover) {
-    border-color: #824082 !important;
-    background: #e0c6e6 !important;
 }
 </style>

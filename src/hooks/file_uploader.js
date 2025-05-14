@@ -13,25 +13,36 @@ export function useFileUploader() {
     formData.append('file', fileStoreItem.raw)
     formData.append('id', fileStoreItem.id) // 后端需要id
     // formData.append('file_name', fileStoreItem.name) // 后端需要file_name
-
     try {
-      filesStoreInstance.updateFileStatus(fileStoreItem.uid, 'uploading')
+      filesStoreInstance.updateFileStatus(fileStoreItem.uid, filesStoreInstance, 'uploading')
       const response = await axios.post(upload_file_url, formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
         },
         onUploadProgress: (progressEvent) => {
           const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total)
-          filesStoreInstance.updateFileStatus(fileStoreItem.uid, 'uploading', percentCompleted)
+          filesStoreInstance.updateFileStatus(
+            fileStoreItem.uid,
+            filesStoreInstance,
+            'uploading',
+            percentCompleted,
+          )
         },
       })
 
       if (response.data && response.data.code === 200) {
-        filesStoreInstance.updateFileStatus(fileStoreItem.uid, 'success', 100, response.data)
+        filesStoreInstance.updateFileStatus(
+          fileStoreItem.uid,
+          filesStoreInstance,
+          'success',
+          100,
+          response.data,
+        )
         ElMessage.success(`${fileStoreItem.name} 上传成功: ${response.data.msg}`)
       } else {
         filesStoreInstance.updateFileStatus(
           fileStoreItem.uid,
+          filesStoreInstance,
           'error',
           fileStoreItem.progress,
           response.data,
@@ -41,6 +52,7 @@ export function useFileUploader() {
     } catch (error) {
       filesStoreInstance.updateFileStatus(
         fileStoreItem.uid,
+        filesStoreInstance,
         'error',
         fileStoreItem.progress,
         error.response?.data || error.message,
