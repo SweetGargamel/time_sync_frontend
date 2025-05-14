@@ -122,7 +122,8 @@
         <div class="add-buttons" style="margin: 20px 0;">
             <el-button v-if="activeTable === 'person'" type="primary" @click="handleAddPerson">新增人员</el-button>
             <el-button v-if="activeTable === 'group'" type="primary" @click="handleAddGroup">新增组</el-button>
-            <el-button type="primary" @click="handle_AI_change_person_group">用AI帮助你智能管理</el-button>
+            <el-button v-if="activeTable === 'person'" type="primary" @click="AI_Change_person">智能录入人员信息</el-button>
+            <el-button v-if="activeTable === 'group'" type="primary" @click="AI_change_group">用AI管理组信息</el-button>
         </div>
         <!-- 新增人员弹窗 -->
         <el-dialog v-model="addPersonDialogVisible" title="新增人员" width="400px">
@@ -167,7 +168,7 @@
         </el-dialog>
 
         <!-- AI管理对话框 -->
-        <el-dialog v-model="aiDialogVisible" title="AI智能管理" width="750px">
+        <el-dialog v-model="ai_group_DialogVisible" title="AI智能管理" width="750px">
             <el-form>
                 <el-form-item>
                     <el-input v-model="aiUserNeed" type="textarea" :rows="6" placeholder="请输入您的需求，例如：'我要将张三从开甲组中移除'"
@@ -179,6 +180,27 @@
                 <el-button type="primary" @click="handleAIDialogConfirm">确定</el-button>
             </template>
         </el-dialog>
+
+        <!-- AI智能录入人员信息对话框 -->
+        <el-dialog v-model="ai_person_DialogVisible" title="AI智能录入人员信息" width="500px">
+            <el-upload v-model:file-list="aiPersonFileList" class="upload-demo llm-upload-purple" drag action="#"
+                :auto-upload="false" :limit="1" :on-change="handleAIPersonFileChange"
+                :on-remove="handleAIPersonFileRemove" accept=".csv,.xlsx,.txt">
+                <el-icon class="el-icon--upload"><upload-filled /></el-icon>
+                <div class="el-upload__text">
+                    将文件拖到此处或 <em>点击上传</em>
+                </div>
+                <template #tip>
+                    <div class="el-upload__tip">
+                        请上传 CSV、Excel 或 TXT 格式文件 (单个文件不超过 5MB)
+                    </div>
+                </template>
+            </el-upload>
+            <template #footer>
+                <el-button @click="handleAIPersonDialogCancel">取消</el-button>
+                <el-button type="primary" @click="handleAIPersonDialogConfirm">确定</el-button>
+            </template>
+        </el-dialog>
     </div>
 </template>
 
@@ -187,6 +209,10 @@ import { ref, computed, onMounted, reactive } from 'vue'
 import { usePersonGroupStore } from '../stores/persongroup'
 import { ElMessage, ElLoading } from 'element-plus'
 import { v4 as uuidv4 } from 'uuid'
+import { useFileUploader } from '@/hooks/file_uploader'
+import { useAIInsertPerson } from '@/hooks/AI_Insert_Personjs'
+import { useFilesStore } from '@/stores/files'
+import { UploadFilled } from '@element-plus/icons-vue'
 
 const store = usePersonGroupStore()
 const activeTable = ref('person') // 默认显示人员表格
@@ -200,8 +226,15 @@ const currentPageGroup = ref(1)
 const pageSizeGroup = ref(1)
 
 // AI管理对话框相关
-const aiDialogVisible = ref(false)
+const ai_person_DialogVisible = ref(false)
+const ai_group_DialogVisible = ref(false)
 const aiUserNeed = ref('')
+
+// AI智能录入人员信息相关
+const aiPersonFileList = ref([])
+const filesStore = useFilesStore()
+const { uploadFile } = useFileUploader()
+const { AIInsertPerson } = useAIInsertPerson()
 
 // 新增：自定义校验学号是否重复
 const validatePersonId = (rule, value, callback) => {
@@ -567,16 +600,19 @@ const handleCurrentChangeGroup = (val) => {
 }
 
 // AI管理相关方法
-const handle_AI_change_person_group = () => {
-    aiDialogVisible.value = true
+const AI_change_group = () => {
+    ai_group_DialogVisible.value = true
+}
+const AI_Change_person = () => {
+    ai_person_DialogVisible.value = true
 }
 
 const handleAIDialogCancel = () => {
-    aiDialogVisible.value = false
+    ai_person_DialogVisible.value = false
 }
 
 const handleAIDialogConfirm = async () => {
-    aiDialogVisible.value = false
+    ai_person_DialogVisible.value = false
     const loadingInstance = ElLoading.service({
         lock: true,
         text: '信息为后台正在操作中，请稍后',
@@ -603,6 +639,81 @@ const handleAIDialogConfirm = async () => {
         }
     } catch (error) {
         ElMessage.error('操作失败')
+    } finally {
+        loadingInstance.close()
+    }
+}
+
+// AI智能录入人员信息相关
+const handleAIPersonFileChange = (uploadFile, uploadFiles) => {
+    if (uploadFile.status === 'ready') {
+        const allowedTypes = [
+            'text/csv',
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'text/plain'
+        ]
+
+        if (!allowedTypes.includes(uploadFile.raw.type)) {
+            ElMessage.error('只支持 CSV、Excel 或 TXT 格式文件')
+            const index = uploadFiles.findIndex(f => f.uid === uploadFile.uid)
+            if (index !== -1) {
+                uploadFiles.splice(index, 1)
+            }
+            return
+        }
+
+        if (uploadFile.raw.size > 5 * 1024 * 1024) {
+            ElMessage.error('文件大小不能超过 5MB')
+            const index = uploadFiles.findIndex(f => f.uid === uploadFile.uid)
+            if (index !== -1) {
+                uploadFiles.splice(index, 1)
+            }
+            return
+        }
+
+        if (!filesStore.getFileByUid(uploadFile.uid)) {
+            filesStore.addFile(uploadFile.raw)
+        }
+    }
+}
+
+const handleAIPersonFileRemove = (uploadFile) => {
+    filesStore.removeFileByUid(uploadFile.uid)
+    ElMessage.success(`移除了文件: ${uploadFile.name}`)
+}
+
+const handleAIPersonDialogCancel = () => {
+    ai_person_DialogVisible.value = false
+    aiPersonFileList.value = []
+}
+
+const handleAIPersonDialogConfirm = async () => {
+    if (aiPersonFileList.value.length === 0) {
+        ElMessage.warning('请先选择文件')
+        return
+    }
+
+    const loadingInstance = ElLoading.service({
+        lock: true,
+        text: '正在处理中，请稍候...',
+        background: 'rgba(0, 0, 0, 0.7)'
+    })
+
+    try {
+        const fileItem = aiPersonFileList.value[0]
+        await uploadFile(fileItem, filesStore)
+
+        if (fileItem.status === 'success') {
+            await AIInsertPerson(fileItem.id)
+            ElMessage.success('人员信息录入成功')
+            ai_person_DialogVisible.value = false
+            aiPersonFileList.value = []
+        } else {
+            ElMessage.error('文件上传失败')
+        }
+    } catch (error) {
+        console.error('处理失败:', error)
+        ElMessage.error('处理失败，请重试')
     } finally {
         loadingInstance.close()
     }
@@ -720,5 +831,46 @@ onMounted(async () => {
 :deep(.el-pagination.is-background .btn-prev:not(:disabled):hover),
 :deep(.el-pagination.is-background .btn-next:not(:disabled):hover) {
     color: #824082 !important;
+}
+
+.llm-upload-purple {
+    --el-color-primary: #824082 !important;
+    --el-upload-dragger-border-color: #824082 !important;
+    --el-upload-dragger-bg-color: #f3e6f7 !important;
+    --el-upload-dragger-hover-border-color: #824082 !important;
+    --el-upload-list-hover-bg-color: #f3e6f7 !important;
+}
+
+:deep(.el-upload) {
+    --el-color-primary: #824082 !important;
+}
+
+:deep(.el-upload__text) {
+    color: #824082 !important;
+}
+
+:deep(.el-upload__tip) {
+    color: #824082 !important;
+}
+
+:deep(.el-upload-list__item) {
+    background: #f3e6f7 !important;
+    border-color: #824082 !important;
+    color: #824082 !important;
+}
+
+:deep(.el-upload-list__item .el-icon--close) {
+    color: #824082 !important;
+}
+
+:deep(.el-upload-dragger) {
+    border: 2px dashed #824082 !important;
+    background: #f3e6f7 !important;
+    color: #824082 !important;
+}
+
+:deep(.el-upload-dragger:hover) {
+    border-color: #824082 !important;
+    background: #e0c6e6 !important;
 }
 </style>

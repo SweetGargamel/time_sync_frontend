@@ -19,6 +19,7 @@ export const add_group_url = `${base_url}/api/update_group`
 export const add_persons_url = `${base_url}/api/update_persons`
 //ai操控组
 export const LLM_change_person_group_url = `${base_url}/api/LLM_change_person_group`
+export const LLM_AI_insert_person_url = `${base_url}/api/LLM_AI_insert_person`
 //ai分组
 export const LLM_form_group_url = `${base_url}/api/LLM_form_group`
 //爬虫相关api
