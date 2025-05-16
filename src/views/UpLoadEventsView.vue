@@ -722,14 +722,14 @@ const handleExtract = async () => {
     }
 
     // 上传所有文件
-    const filesToUpload = filesStore.fileList.filter(f => f.status === 'ready' || f.status === 'error')
+    const filesToUpload = filesStore.fileList
     console.log('上传文件列表:', filesStore.fileList)
     const uploadedFileIds = []
-    console.log('上传文件列表:', filesToUpload)
     for (const fileItem of filesToUpload) {
       try {
-        await uploadFile(fileItem, filesStore)
-        if (fileItem.status === 'success') {
+        const result = await uploadFile(fileItem, filesStore)
+        // 只有在文件真正上传成功后才添加到 uploadedFileIds
+        if (result && fileItem.status === 'success') {
           uploadedFileIds.push(fileItem.id)
           ElMessage.success(`${fileItem.name} 上传成功`)
         }
@@ -883,6 +883,8 @@ const allowedFileTypes = [
   'image/webp'
 ];
 const maxFileSize = 5 * 1024 * 1024; // 5MB
+// const maxFileSize = 500 * 1024 * 1024; // 5MB
+
 
 const handleFileChange = (uploadFile, uploadFiles) => {
   // 仅在文件状态为 'ready' (新添加) 时处理

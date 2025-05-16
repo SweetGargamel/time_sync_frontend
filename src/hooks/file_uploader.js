@@ -6,7 +6,7 @@ export function useFileUploader() {
   const uploadFile = async (fileStoreItem, filesStoreInstance) => {
     if (!fileStoreItem || !fileStoreItem.raw) {
       ElMessage.error('无效的文件对象')
-      return
+      return Promise.reject(new Error('无效的文件对象'))
     }
 
     const formData = new FormData()
@@ -14,45 +14,34 @@ export function useFileUploader() {
     formData.append('id', fileStoreItem.id) // 后端需要id
     // formData.append('file_name', fileStoreItem.name) // 后端需要file_name
     try {
-      filesStoreInstance.updateFileStatus(fileStoreItem.uid, filesStoreInstance, 'uploading')
+      filesStoreInstance.updateFileStatus(fileStoreItem.uid, 'uploading')
       const response = await axios.post(upload_file_url, formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
         },
         onUploadProgress: (progressEvent) => {
           const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total)
-          filesStoreInstance.updateFileStatus(
-            fileStoreItem.uid,
-            filesStoreInstance,
-            'uploading',
-            percentCompleted,
-          )
+          filesStoreInstance.updateFileStatus(fileStoreItem.uid, 'uploading', percentCompleted)
         },
       })
 
       if (response.data && response.data.code === 200) {
-        filesStoreInstance.updateFileStatus(
-          fileStoreItem.uid,
-          filesStoreInstance,
-          'success',
-          100,
-          response.data,
-        )
+        filesStoreInstance.updateFileStatus(fileStoreItem.uid, 'success', 100, response.data)
         ElMessage.success(`${fileStoreItem.name} 上传成功: ${response.data.msg}`)
+        return Promise.resolve(response.data)
       } else {
         filesStoreInstance.updateFileStatus(
           fileStoreItem.uid,
-          filesStoreInstance,
           'error',
           fileStoreItem.progress,
           response.data,
         )
         ElMessage.error(`${fileStoreItem.name} 上传失败: ${response.data.msg || '未知错误'}`)
+        return Promise.reject(new Error(response.data.msg || '未知错误'))
       }
     } catch (error) {
       filesStoreInstance.updateFileStatus(
         fileStoreItem.uid,
-        filesStoreInstance,
         'error',
         fileStoreItem.progress,
         error.response?.data || error.message,
@@ -61,6 +50,7 @@ export function useFileUploader() {
         `${fileStoreItem.name} 上传出错: ${error.response?.data?.msg || error.message || '网络错误'}`,
       )
       console.error('Upload error:', error)
+      return Promise.reject(error)
     }
   }
 

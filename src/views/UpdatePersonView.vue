@@ -720,7 +720,7 @@ const handleAiPersonUploadSubmit = async () => {
         // Step 1: Upload the file
         ElMessage.info(`开始上传文件: ${fileName}`);
         const uploadResult = await uploadAiExcelFile(rawFile, fileId, fileName);
-
+        console.log('Upload result:', uploadResult);
         if (uploadResult && uploadResult.success) {
             ElMessage.success(`文件 ${fileName} 上传成功! ID: ${uploadResult.data.id}. 开始AI处理...`);
 
