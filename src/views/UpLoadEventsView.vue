@@ -723,8 +723,9 @@ const handleExtract = async () => {
 
     // 上传所有文件
     const filesToUpload = filesStore.fileList.filter(f => f.status === 'ready' || f.status === 'error')
+    console.log('上传文件列表:', filesStore.fileList)
     const uploadedFileIds = []
-
+    console.log('上传文件列表:', filesToUpload)
     for (const fileItem of filesToUpload) {
       try {
         await uploadFile(fileItem, filesStore)
@@ -884,11 +885,6 @@ const allowedFileTypes = [
 const maxFileSize = 5 * 1024 * 1024; // 5MB
 
 const handleFileChange = (uploadFile, uploadFiles) => {
-  // uploadFile 包含 uid, name, raw, status, percentage 等
-  // uploadFiles 是当前的完整文件列表
-
-  // ElMessage.info(`文件 ${uploadFile.name} 状态变为 ${uploadFile.status}`);
-
   // 仅在文件状态为 'ready' (新添加) 时处理
   if (uploadFile.status === 'ready') {
     if (!allowedFileTypes.includes(uploadFile.raw.type)) {
@@ -896,8 +892,6 @@ const handleFileChange = (uploadFile, uploadFiles) => {
       // 从 el-upload 的列表中移除，并通过 uid 从 store 中移除
       const internalFileIndex = filesStore.fileList.findIndex(f => f.uid === uploadFile.uid);
       if (internalFileIndex !== -1) {
-        // 这个uid是el-upload内部的，我们需要找到我们store中对应的文件并移除
-        // 这里假设 el-upload 的 uid 和我们 store 的 uid 是一致的
         filesStore.removeFileByUid(uploadFile.uid);
       }
       // 更新 el-upload 内部维护的列表
@@ -920,15 +914,13 @@ const handleFileChange = (uploadFile, uploadFiles) => {
       }
       return;
     }
+
     // 如果文件已存在于 store (基于 el-upload 的 uid)，则不重复添加
-    // el-upload 的 on-change 会在添加和状态改变时触发，我们需要确保只在首次添加时调用 addFile
-    // filesStore.addFile 内部会生成新的 uid 和 id，所以这里我们依赖 el-upload 提供的 uploadFile.raw
-    // 并且在addFile后，el-upload 的 file-list 会通过 v-model 更新
-    // 关键在于确保 v-model:file-list 的 uid 与 store 中的 uid 一致
     if (!filesStore.getFileByUid(uploadFile.uid)) {
-      const addedFile = filesStore.addFile(uploadFile.raw); // addFile 返回新创建的 store item
-      // 同步 el-upload 内部列表项的 uid, 以便后续操作能正确找到 store 中的项
-      // uploadFile.uid = addedFile.uid; // 这行可能不需要，因为v-model会同步
+      const addedFile = filesStore.addFile(uploadFile.raw);
+      // 更新 el-upload 内部列表项的 uid 和 id
+      uploadFile.uid = addedFile.uid;
+      uploadFile.id = addedFile.id;
     }
   }
 };

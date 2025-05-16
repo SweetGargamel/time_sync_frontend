@@ -7,9 +7,11 @@ export const useFilesStore = defineStore('files', () => {
 
   const upload_user_file = ref([]) // { id: string, name: string, raw: File, status: 'ready' | 'uploading' | 'success' | 'error', progress: number, response: any, uid: string }
   const addFile = (file) => {
+    const fileId = uuidv4()
+    const fileUid = uuidv4() // el-upload uses uid for its internal list management
     const newFile = {
-      id: uuidv4(),
-      uid: uuidv4(), // el-upload uses uid for its internal list management
+      id: fileId,
+      uid: fileUid,
       name: file.name,
       raw: file,
       status: 'ready',
