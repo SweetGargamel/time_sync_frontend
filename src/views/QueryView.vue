@@ -249,8 +249,8 @@ const handleNormalLLMPerson = async () => {
 
     try {
       const data = await sendLLMFormGroupRequest(normal_person_text.value)
-      if (data && data.person_ids) {
-        query_store.query_params.selectedPersons = data.person_ids
+      if (data && data.persons) {
+        query_store.query_params.selectedPersons = data.persons
         ElMessage.success('AI选人成功')
       }
     } catch (error) {
@@ -277,8 +277,8 @@ const handleRequiredLLMPerson = async () => {
 
     try {
       const data = await sendLLMFormGroupRequest(required_person_text.value)
-      if (data && data.group_ids) {
-        query_store.query_params.requiredGroups = data.group_ids
+      if (data && data.persons) {
+        query_store.query_params.requiredPersons = data.persons
         ElMessage.success('AI选人成功')
       }
     } catch (error) {

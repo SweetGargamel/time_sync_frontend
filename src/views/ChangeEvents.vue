@@ -191,13 +191,11 @@ const handleLLMGroup = async () => {
     })
 
     try {
+        print(group_text.value)
         const response = await sendLLMFormGroupRequest(group_text.value)
-        if (response.code === 200) {
-            selectedPersons.value = response.persons
-            ElMessage.success('AI选人成功')
-        } else {
-            ElMessage.error(response.msg || 'AI选人失败')
-        }
+        print(response)
+        selectedPersons.value = response.persons
+        ElMessage.success('AI选人成功')
     } catch (error) {
         console.error('AI选人失败:', error)
         ElMessage.error('AI选人失败，请重试')

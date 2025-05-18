@@ -13,6 +13,7 @@ export const useLLMFormGroup = () => {
         }),
       })
       const data = await response.json()
+      console.log('AI选人请求成功:', data)
       return data
     } catch (error) {
       console.error('AI选人请求失败:', error)

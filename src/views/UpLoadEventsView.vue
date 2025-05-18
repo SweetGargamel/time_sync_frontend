@@ -785,7 +785,8 @@ const handleRetry = async (index) => {
       status: 'processing',
       event_string: currentEvent.event_string,
       persons: [...currentEvent.persons],
-      groups: [...currentEvent.groups]
+      groups: [...currentEvent.groups],
+      files: [...currentEvent.files] // 保留文件ID
     }
 
     // 发送请求
@@ -950,15 +951,17 @@ const handleLLMGroup = async () => {
 
   try {
     const response = await sendLLMFormGroupRequest(group_text.value)
-    if (response.code === 200) {
-      // 清空原有选择
-      events_store.scheduleForm.selectedPersons = []
-      // 添加新选择的人员
-      events_store.scheduleForm.selectedPersons = response.persons
-      ElMessage.success('AI选人成功')
-    } else {
-      ElMessage.error(response.msg || 'AI选人失败')
-    }
+    print(response)
+    // 清空原有选择
+    console.log(events_store.scheduleForm.selectedPersons)
+    events_store.scheduleForm.selectedPersons = []
+    // 添加新选择的人员
+    console.log(events_store.scheduleForm.selectedPersons)
+
+    events_store.scheduleForm.selectedPersons = response.persons
+    console.log(events_store.scheduleForm.selectedPersons)
+
+    ElMessage.success('AI选人成功')
   } catch (error) {
     console.error('AI选人失败:', error)
     ElMessage.error('AI选人失败，请重试')
