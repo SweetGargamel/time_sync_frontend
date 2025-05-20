@@ -40,6 +40,12 @@
               </el-icon>
               <template #title>录入日程</template>
             </el-menu-item>
+            <el-menu-item index="/events">
+              <el-icon>
+                <View />
+              </el-icon>
+              <template #title>查改日程</template>
+            </el-menu-item>
             <el-menu-item index="/query">
               <el-icon>
                 <Search />

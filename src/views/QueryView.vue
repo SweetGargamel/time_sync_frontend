@@ -2,66 +2,86 @@
   <div class="query" ref="Query_div_def">
     <h2>预定日程</h2>
     <div class="search-form">
-
       <el-form :inline="true" class="demo-form-inline">
+        <div>
+          <div class="select-with-ai">
+            <div class="select-left">
+              <el-form-item label="选择组">
+                <el-select v-model="query_store.query_params.selectedGroups" multiple filterable placeholder="请选择组"
+                  :clearable="true" style="width: 200px">
+                  <el-option v-for="group in groupList" :key="group.id" :label="group.gname" :value="group.id">
+                    <span style="float: left">{{ group.gname }}</span>
+                    <span style="float: right; color: var(--el-text-color-secondary); font-size: 13px">
+                      {{ group.id }}
+                    </span>
+                  </el-option>
+                </el-select>
+              </el-form-item>
 
-        <el-form-item label="选择组">
-          <el-select v-model="query_store.query_params.selectedGroups" multiple filterable placeholder="请选择组"
-            :clearable="true" style="width: 200px">
-            <el-option v-for="group in groupList" :key="group.id" :label="group.gname" :value="group.id">
-              <span style="float: left">{{ group.gname }}</span>
-              <span style="float: right; color: var(--el-text-color-secondary); font-size: 13px">
-                {{ group.id }}
-              </span>
-            </el-option>
-          </el-select>
-        </el-form-item>
+              <el-form-item label="参会人员">
+                <el-select v-model="query_store.query_params.selectedPersons" multiple filterable placeholder="请选择人员"
+                  :clearable="true" style="width: 500px">
+                  <el-option v-for="person in personList" :key="person.id" :label="person.name" :value="person.id">
+                    <span style="float: left">{{ person.name }}</span>
+                    <span style="
+                          float: right;
+                          color: var(--el-text-color-secondary);
+                          font-size: 13px;
+                        ">
+                      {{ person.id }}
+                    </span>
+                  </el-option>
+                </el-select>
+              </el-form-item>
+            </div>
 
-        <el-form-item label="参会人员">
-          <el-select v-model="query_store.query_params.selectedPersons" multiple filterable placeholder="请选择人员"
-            :clearable="true" style="width: 500px">
-            <el-option v-for="person in personList" :key="person.id" :label="person.name" :value="person.id">
-              <span style="float: left">{{ person.name }}</span>
-              <span style="
-                    float: right;
-                    color: var(--el-text-color-secondary);
-                    font-size: 13px;
-                  ">
-                {{ person.id }}
-              </span>
-            </el-option>
-          </el-select>
-        </el-form-item>
-        <el-divider />
-        <el-form-item label="必须参加组">
-          <el-select v-model="query_store.query_params.requiredGroups" multiple filterable placeholder="请选择组"
-            :clearable="true" style="width: 200px">
-            <el-option v-for="group in groupList" :key="group.id" :label="group.gname" :value="group.id">
-              <span style="float: left">{{ group.gname }}</span>
-              <span style="float: right; color: var(--el-text-color-secondary); font-size: 13px">
-                {{ group.id }}
-              </span>
-            </el-option>
-          </el-select>
-        </el-form-item>
-
-        <el-form-item label="必须参会人员">
-          <el-select v-model="query_store.query_params.requiredPersons" multiple filterable placeholder="请选择人员"
-            :clearable="true" style="width: 500px">
-            <el-option v-for="person in personList" :key="person.id" :label="person.name" :value="person.id">
-              <span style="float: left">{{ person.name }}</span>
-              <span style="
-                    float: right;
-                    color: var(--el-text-color-secondary);
-                    font-size: 13px;
-                  ">
-                {{ person.id }}
-              </span>
-            </el-option>
-          </el-select>
-        </el-form-item>
+            <div class="ai-right">
+              <el-input v-model="normal_person_text" type="textarea" :autosize="{ minRows: 5, maxRows: 7 }"
+                maxlength="1000" show-word-limit placeholder="请输入您的选人要求" />
+              <el-button type="primary" @click="handleNormalLLMPerson">AI智能选人</el-button>
+            </div>
+          </div>
+        </div>
         <el-divider />
 
+        <div class="select-with-ai">
+          <div class="select-left">
+            <el-form-item label="必须参加组">
+              <el-select v-model="query_store.query_params.requiredGroups" multiple filterable placeholder="请选择组"
+                :clearable="true" style="width: 200px">
+                <el-option v-for="group in groupList" :key="group.id" :label="group.gname" :value="group.id">
+                  <span style="float: left">{{ group.gname }}</span>
+                  <span style="float: right; color: var(--el-text-color-secondary); font-size: 13px">
+                    {{ group.id }}
+                  </span>
+                </el-option>
+              </el-select>
+            </el-form-item>
+
+            <el-form-item label="必须参会人员">
+              <el-select v-model="query_store.query_params.requiredPersons" multiple filterable placeholder="请选择人员"
+                :clearable="true" style="width: 500px">
+                <el-option v-for="person in personList" :key="person.id" :label="person.name" :value="person.id">
+                  <span style="float: left">{{ person.name }}</span>
+                  <span style="
+                          float: right;
+                          color: var(--el-text-color-secondary);
+                          font-size: 13px;
+                        ">
+                    {{ person.id }}
+                  </span>
+                </el-option>
+              </el-select>
+            </el-form-item>
+          </div>
+
+          <div class="ai-right">
+            <el-input v-model="required_person_text" type="textarea" :autosize="{ minRows: 5, maxRows: 7 }"
+              maxlength="1000" show-word-limit placeholder="请输入您的选人要求" />
+            <el-button type="primary" @click="handleRequiredLLMPerson">AI智能选人</el-button>
+          </div>
+        </div>
+        <el-divider />
         <el-form-item label="日期范围">
           <el-date-picker v-model="query_store.dateRange" type="daterange" range-separator="至" start-placeholder="开始日期"
             end-placeholder="结束日期" />
@@ -73,8 +93,6 @@
             </template>
           </el-input-number>
         </el-form-item>
-
-
 
         <el-form-item label="具体需求">
           <el-input v-model="query_store.query_params.user_need" type="textarea" :autosize="{ minRows: 3, maxRows: 15 }"
@@ -90,9 +108,7 @@
             </el-button>
           </div>
         </el-form-item>
-
       </el-form>
-
     </div>
     <!-- 推荐时间段表格 -->
     <div class="recommend-table" style="margin-top: 40px;">
@@ -102,7 +118,6 @@
           <Warning />
         </el-icon>
         等待查询时请不要刷新界面。我们这里只推荐满足必须参加者能参加的时间段。
-
       </el-text>
       <el-text class="warning-text" type="warning">
         <el-icon class="warning-icon">
@@ -203,6 +218,7 @@ import { ElMessage, ElLoading } from 'element-plus'
 import { useQueryStore } from '../stores/query'
 import { usePersonGroupStore } from '@/stores/persongroup'
 import { Search, Calendar, Clock, Warning } from '@element-plus/icons-vue'
+import { useLLMFormGroup } from '@/hooks/LLM_form_group'
 
 // 添加日期原型方法
 addDatePrototypes()
@@ -212,6 +228,68 @@ const person_group_store = usePersonGroupStore()
 const groupList = computed(() => person_group_store.group_list)
 const personList = computed(() => person_group_store.person_list)
 
+// AI选人相关的响应式变量
+const normal_person_text = ref('')
+const required_person_text = ref('')
+
+// 获取AI选人方法
+const { sendLLMFormGroupRequest } = useLLMFormGroup()
+
+const is_handleing_normal_person_ai = ref(false)
+// 处理普通人员AI选人
+const handleNormalLLMPerson = async () => {
+  if (is_handleing_normal_person_ai.value) {
+    ElMessage.warning('请等待上一次AI选人完成')
+  } else {
+    is_handleing_normal_person_ai.value = true
+    if (!normal_person_text.value) {
+      ElMessage.warning('请输入选人要求')
+      return
+    }
+
+    try {
+      const data = await sendLLMFormGroupRequest(normal_person_text.value)
+      if (data && data.persons) {
+        query_store.query_params.selectedPersons = data.persons
+        ElMessage.success('AI选人成功')
+      }
+    } catch (error) {
+      ElMessage.error('AI选人失败：' + error.message)
+    } finally {
+
+      is_handleing_normal_person_ai.value = false
+    }
+  }
+}
+
+// 处理必须参加组AI选人
+const is_handleing_required_person_ai = ref(false)
+const handleRequiredLLMPerson = async () => {
+  if (is_handleing_required_person_ai.value) {
+    ElMessage.warning('请等待上一次AI选人完成')
+  } else {
+    is_handleing_required_person_ai.value = true
+
+    if (!required_person_text.value) {
+      ElMessage.warning('请输入选人要求')
+      return
+    }
+
+    try {
+      const data = await sendLLMFormGroupRequest(required_person_text.value)
+      if (data && data.persons) {
+        query_store.query_params.requiredPersons = data.persons
+        ElMessage.success('AI选人成功')
+      }
+    } catch (error) {
+      ElMessage.error('AI选人失败：' + error.message)
+    } finally {
+
+      is_handleing_required_person_ai.value = false
+    }
+
+  }
+}
 
 
 const timeCellHeight = ref(90)
@@ -236,16 +314,12 @@ const isGroupFullySelected = (groupId, selectedPersons) => {
   return group?.gperson?.every(p => selectedPersons.includes(p)) || false
 }
 
-
-
 // 组件挂载时，如果 store 中有数据则直接处理显示
 onMounted(async () => {
   await Promise.all([
     person_group_store.query_group_list(),
     person_group_store.query_person_list()
   ])
-
-
 })
 
 const Query_div_def = ref(null)
@@ -267,8 +341,6 @@ const onSearch = async () => {
     text: '加载中...',
     background: 'rgba(255, 255, 255, 0.7)'
   })
-
-
 
   try {
     await query_store.query_time_slots(personList)
@@ -656,7 +728,6 @@ const openEventDialog = ({ event }) => {
   background-color: var(--el-fill-color-light) !important;
 }
 
-
 .vuecal {
   height: 60%;
   --vuecal-primary-color: #824082;
@@ -665,8 +736,6 @@ const openEventDialog = ({ event }) => {
 :deep(.vuecal__cell) {
   border-color: var(--el-border-color-lighter) !important;
 }
-
-
 
 :deep(.vuecal__heading) {
   font-weight: 600;
@@ -697,7 +766,6 @@ const openEventDialog = ({ event }) => {
   font-size: 11px;
   line-height: 1.5;
   /* color: var(--el-text-color-regular); */
-
 }
 
 .event-dialog-content {
@@ -740,5 +808,29 @@ const openEventDialog = ({ event }) => {
   justify-content: flex-end;
   gap: 12px;
   padding-top: 24px;
+}
+
+.select-with-ai {
+  display: flex;
+  gap: 20px;
+  align-items: flex-start;
+}
+
+.select-left {
+  flex: 0 0 700px;
+  max-width: 700px;
+}
+
+.ai-right {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 300px;
+  margin-left: 0;
+}
+
+.ai-right .el-button {
+  align-self: flex-end;
 }
 </style>

@@ -20,11 +20,6 @@ export const useEventsStore = defineStore(
     const dialogVisible = ref(false)
     const isEdit = ref(false)
     const currentEditIndex = ref(-1)
-    // 计算是否是同一天
-    const isSameDay = computed(() => {
-      if (!scheduleForm.startDate || !scheduleForm.endDate) return false
-      return scheduleForm.startDate.getTime() === scheduleForm.endDate.getTime()
-    })
 
     // 表单数据
     const scheduleForm = reactive({
@@ -36,7 +31,11 @@ export const useEventsStore = defineStore(
       endDate: '',
       endTime: '',
     })
-
+    // 计算是否是同一天
+    const isSameDay = computed(() => {
+      if (!scheduleForm.startDate || !scheduleForm.endDate) return false
+      return scheduleForm.startDate.getTime() === scheduleForm.endDate.getTime()
+    })
     // 处理提交
     const handleSubmit = () => {
       // 验证时间

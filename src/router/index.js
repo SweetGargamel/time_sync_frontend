@@ -19,12 +19,17 @@ const router = createRouter({
       name: 'upload',
       component: () => import('../views/UpLoadEventsView.vue'),
     },
-
+    {
+      path: '/events',
+      name: 'event',
+      component: () => import('../views/ChangeEvents.vue'),
+    },
     {
       path: '/person',
       name: 'person',
       component: () => import('../views/UpdatePersonView.vue'),
     },
+
     // {
     //   path: '/clip',
     //   name: 'clip',

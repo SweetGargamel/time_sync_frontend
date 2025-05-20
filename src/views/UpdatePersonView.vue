@@ -18,7 +18,7 @@
             </el-icon>
             等待修改结果返回时请不要刷新页面
         </el-text>
-        <el-table v-if="activeTable === 'person'" :data="personList" border style="width: 100%; margin-top: 20px;"
+        <el-table v-if="activeTable === 'person'" :data="pagedPersonList" border style="width: 100%; margin-top: 20px;"
             table-layout="auto">
             <el-table-column prop="id" label="ID" width="180" :resizable="false" />
             <el-table-column prop="name" label="姓名" width="180" :resizable="false" />
@@ -41,6 +41,11 @@
                 </template>
             </el-table-column>
         </el-table>
+        <el-pagination v-if="activeTable === 'person'" v-model:current-page="currentPagePerson"
+            v-model:page-size="pageSizePerson" :page-sizes="[15, 30, 50, 100]"
+            layout="total, sizes, prev, pager, next, jumper" :total="personList.length"
+            @size-change="handleSizeChangePerson" @current-change="handleCurrentChangePerson"
+            style="margin-top: 20px; justify-content: flex-end;" />
 
         <!-- 编辑人员弹窗 -->
         <el-dialog v-model="editDialogVisible" title="编辑人员信息" width="400px">
@@ -65,7 +70,7 @@
         </el-dialog>
 
         <!-- 组表格 -->
-        <el-table v-if="activeTable === 'group'" :data="groupList" border style="width: 100%; margin-top: 20px;"
+        <el-table v-if="activeTable === 'group'" :data="pagedGroupList" border style="width: 100%; margin-top: 20px;"
             table-layout="auto">
             <el-table-column prop="id" label="ID" width="180" :resizable="false" />
             <el-table-column prop="gname" label="组名" width="180" :resizable="false" />
@@ -88,6 +93,11 @@
                 </template>
             </el-table-column>
         </el-table>
+        <el-pagination v-if="activeTable === 'group'" v-model:current-page="currentPageGroup"
+            v-model:page-size="pageSizeGroup" :page-sizes="[1, 2, 3, 5]"
+            layout="total, sizes, prev, pager, next, jumper" :total="groupList.length"
+            @size-change="handleSizeChangeGroup" @current-change="handleCurrentChangeGroup"
+            style="margin-top: 20px; justify-content: flex-end;" />
 
         <!-- 编辑组弹窗 -->
         <el-dialog v-model="editGroupDialogVisible" title="编辑组信息" width="400px">
@@ -112,8 +122,9 @@
         <div class="add-buttons" style="margin: 20px 0;">
             <el-button v-if="activeTable === 'person'" type="primary" @click="handleAddPerson">新增人员</el-button>
             <el-button v-if="activeTable === 'group'" type="primary" @click="handleAddGroup">新增组</el-button>
+            <el-button v-if="activeTable === 'person'" type="primary" @click="AI_Change_person">智能录入人员信息</el-button>
+            <el-button v-if="activeTable === 'group'" type="primary" @click="AI_change_group">用AI管理组信息</el-button>
         </div>
-
         <!-- 新增人员弹窗 -->
         <el-dialog v-model="addPersonDialogVisible" title="新增人员" width="400px">
             <el-form :model="addPersonForm" :rules="addPersonFormRules" ref="addPersonFormRef" label-width="80px">
@@ -155,17 +166,76 @@
                 <el-button type="primary" @click="handleAddGroupConfirm">确定</el-button>
             </template>
         </el-dialog>
+
+        <!-- AI管理对话框 -->
+        <el-dialog v-model="ai_group_DialogVisible" title="AI智能管理" width="750px">
+            <el-form>
+                <el-form-item>
+                    <el-input v-model="aiUserNeed" type="textarea" :rows="6" placeholder="请输入您的需求，例如：'我要将张三从开甲组中移除'"
+                        maxlength="2000" show-word-limit :autosize="{ minRows: 10, maxRows: 15 }" />
+                </el-form-item>
+            </el-form>
+            <template #footer>
+                <el-button @click="handleAIDialogCancel">取消</el-button>
+                <el-button type="primary" @click="handleAIDialogConfirm">确定</el-button>
+            </template>
+        </el-dialog>
+
+        <!-- AI智能批量录入人员信息对话框 -->
+        <el-dialog v-model="ai_person_DialogVisible" title="智能批量录入人员信息" width="500px"
+            @close="handleAiPersonUploadCancel" id="ai-person-upload-dialog">
+            <el-upload ref="aiPersonUploadRef" v-model:file-list="aiPersonUploadFileList"
+                class="upload-demo llm-upload-purple" drag action="#" :auto-upload="false" :limit="1"
+                accept=".csv,.xlsx,.txt,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/plain"
+                :on-exceed="handleAiPersonUploadExceed" :on-change="handleAiPersonFileChange"
+                :on-remove="handleAiPersonFileRemove">
+                <el-icon class="el-icon--upload"><upload-filled /></el-icon>
+                <div class="el-upload__text">
+                    将文件拖到此处或 <em>点击上传</em>
+                </div>
+                <template #tip>
+                    <div class="el-upload__tip">
+                        请上传包含人员信息的 CSV, XLSX 或 TXT 格式文件，要求一列为学工号，一列为姓名，一列为其归属的组（比如开甲书院/计科三班）。限制1个, 新文件将覆盖旧文件。
+                    </div>
+                </template>
+            </el-upload>
+            <template #footer>
+                <span class="dialog-footer">
+                    <el-button @click="handleAiPersonUploadCancel">取消</el-button>
+                    <el-button type="primary" @click="handleAiPersonUploadSubmit">提交</el-button>
+                </span>
+            </template>
+        </el-dialog>
     </div>
 </template>
 
 <script setup>
 import { ref, computed, onMounted, reactive } from 'vue'
 import { usePersonGroupStore } from '../stores/persongroup'
-import { ElMessage, ElLoading } from 'element-plus'
+import { ElMessage, ElLoading, genFileId } from 'element-plus'
 import { v4 as uuidv4 } from 'uuid'
+import { UploadFilled } from '@element-plus/icons-vue'
+import { uploadAiExcelFile } from '@/hooks/submit_ai_excel.js'
+import { triggerAIInsertPerson } from '@/hooks/AI_Insert_Person.js'
 
 const store = usePersonGroupStore()
 const activeTable = ref('person') // 默认显示人员表格
+
+// 分页相关 - 人员
+const currentPagePerson = ref(1)
+const pageSizePerson = ref(15)
+
+// 分页相关 - 组
+const currentPageGroup = ref(1)
+const pageSizeGroup = ref(1)
+
+// AI管理对话框相关
+const ai_person_DialogVisible = ref(false)
+const ai_group_DialogVisible = ref(false)
+const aiUserNeed = ref('')
+
+const aiPersonUploadFileList = ref([])
+const aiPersonUploadRef = ref()
 
 // 新增：自定义校验学号是否重复
 const validatePersonId = (rule, value, callback) => {
@@ -179,6 +249,20 @@ const validatePersonId = (rule, value, callback) => {
 // 计算属性
 const personList = computed(() => store.person_list)
 const groupList = computed(() => store.group_list)
+
+// 计算属性 - 分页后的人员列表
+const pagedPersonList = computed(() => {
+    const start = (currentPagePerson.value - 1) * pageSizePerson.value
+    const end = start + pageSizePerson.value
+    return personList.value.slice(start, end)
+})
+
+// 计算属性 - 分页后的组列表
+const pagedGroupList = computed(() => {
+    const start = (currentPageGroup.value - 1) * pageSizeGroup.value
+    const end = start + pageSizeGroup.value
+    return groupList.value.slice(start, end)
+})
 
 // 编辑弹窗相关
 const editDialogVisible = ref(false)
@@ -498,6 +582,175 @@ const handleAddGroupCancel = () => {
     addGroupDialogVisible.value = false
 }
 
+// 分页处理函数 - 人员
+const handleSizeChangePerson = (val) => {
+    pageSizePerson.value = val
+    currentPagePerson.value = 1 // 切换每页数量时，重置到第一页
+}
+const handleCurrentChangePerson = (val) => {
+    currentPagePerson.value = val
+}
+
+// 分页处理函数 - 组
+const handleSizeChangeGroup = (val) => {
+    pageSizeGroup.value = val
+    currentPageGroup.value = 1 // 切换每页数量时，重置到第一页
+}
+const handleCurrentChangeGroup = (val) => {
+    currentPageGroup.value = val
+}
+
+// AI管理相关方法
+const AI_change_group = () => {
+    ai_group_DialogVisible.value = true
+}
+const AI_Change_person = () => {
+    aiPersonUploadFileList.value = []
+    if (aiPersonUploadRef.value) {
+        aiPersonUploadRef.value.clearFiles()
+    }
+    ai_person_DialogVisible.value = true
+}
+
+const handleAIDialogCancel = () => {
+    ai_person_DialogVisible.value = false
+}
+
+const handleAIDialogConfirm = async () => {
+    ai_person_DialogVisible.value = false
+    const loadingInstance = ElLoading.service({
+        lock: true,
+        text: '信息为后台正在操作中，请稍后',
+        background: 'rgba(0, 0, 0, 0.7)'
+    })
+
+    try {
+        const response = await fetch(LLM_change_person_group_url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                user_need: aiUserNeed.value
+            })
+        })
+        const data = await response.json()
+
+        if (data.code === 200) {
+            ElMessage.success(data.msg)
+            aiUserNeed.value = '' // 清空文本域
+        } else {
+            ElMessage.error(data.msg || '操作失败')
+        }
+    } catch (error) {
+        ElMessage.error('操作失败')
+    } finally {
+        loadingInstance.close()
+    }
+}
+
+const handleAiPersonUploadExceed = (files) => {
+    if (aiPersonUploadRef.value) {
+        aiPersonUploadRef.value.clearFiles();
+        const file = files[0];
+        file.uid = genFileId(); // Or use a simple unique ID logic if genFileId causes issues without full TS setup
+        aiPersonUploadRef.value.handleStart(file);
+    }
+};
+
+const handleAiPersonFileChange = (uploadFile, uploadFiles) => {
+    // Limit to one file, new one replaces old one via on-exceed
+    // This is mainly to ensure our aiPersonUploadFileList is in sync if not using v-model directly or if other logic is needed.
+    // For limit 1, on-exceed should handle replacement.
+    // We can add client-side validation for type/size here if desired.
+    const allowedTypes = ['text/csv', 'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'text/plain'];
+    if (!allowedTypes.includes(uploadFile.raw.type) && uploadFile.status === 'ready') {
+        ElMessage.error('文件类型不支持! 请上传 CSV, XLSX, 或 TXT 文件。');
+        if (aiPersonUploadRef.value) {
+            aiPersonUploadRef.value.handleRemove(uploadFile); // Remove from el-upload's list
+        }
+        aiPersonUploadFileList.value = uploadFiles.filter(f => f.uid !== uploadFile.uid); // Ensure our list is also updated
+        return false;
+    }
+    // If on-exceed works as expected, aiPersonUploadFileList (if v-modeled) should update.
+    // If not v-modeled, or to be absolutely sure:
+    if (uploadFiles.length > 0) {
+        aiPersonUploadFileList.value = [uploadFiles[uploadFiles.length - 1]]; // Keep only the last one
+    } else {
+        aiPersonUploadFileList.value = [];
+    }
+};
+
+const handleAiPersonFileRemove = (uploadFile, uploadFiles) => {
+    aiPersonUploadFileList.value = uploadFiles;
+};
+
+const handleAiPersonUploadCancel = () => {
+    ai_person_DialogVisible.value = false
+    aiPersonUploadFileList.value = []
+    if (aiPersonUploadRef.value) {
+        aiPersonUploadRef.value.clearFiles()
+    }
+}
+
+const handleAiPersonUploadSubmit = async () => {
+    if (aiPersonUploadFileList.value.length === 0) {
+        ElMessage.warning('请先选择一个文件');
+        return;
+    }
+
+    const fileToUpload = aiPersonUploadFileList.value[0];
+    if (!fileToUpload.raw) {
+        ElMessage.error('无效的文件对象');
+        return;
+    }
+
+    const loadingInstance = ElLoading.service({
+        lock: true,
+        text: '正在处理文件，请稍候...',
+        background: 'rgba(0, 0, 0, 0.7)',
+        // target: document.querySelector('#ai-person-upload-dialog .el-dialog__body') || document.body // More robust target needed
+    });
+
+    try {
+        const fileId = uuidv4();
+        const rawFile = fileToUpload.raw;
+        const fileName = fileToUpload.name;
+
+        // Step 1: Upload the file
+        ElMessage.info(`开始上传文件: ${fileName}`);
+        const uploadResult = await uploadAiExcelFile(rawFile, fileId, fileName);
+        console.log('Upload result:', uploadResult);
+        if (uploadResult && uploadResult.success) {
+            ElMessage.success(`文件 ${fileName} 上传成功! ID: ${uploadResult.data.id}. 开始AI处理...`);
+
+            // Step 2: Trigger AI processing
+            const aiResult = await triggerAIInsertPerson(uploadResult.data.id);
+
+            if (aiResult && aiResult.success) {
+                ElMessage.success(aiResult.data.msg || 'AI智能录入人员成功！');
+                ai_person_DialogVisible.value = false;
+                aiPersonUploadFileList.value = [];
+                if (aiPersonUploadRef.value) {
+                    aiPersonUploadRef.value.clearFiles()
+                }
+                // Refresh person list
+                await store.query_person_list();
+                await store.query_group_list(); // Also refresh groups if they might be affected indirectly
+            } else {
+                ElMessage.error(aiResult.error || 'AI处理失败');
+            }
+        } else {
+            // Error message handled by uploadAiExcelFile
+        }
+    } catch (error) {
+        console.error('Error in AI person upload submission process:', error);
+        ElMessage.error('提交处理失败，请检查控制台');
+    } finally {
+        loadingInstance.close();
+    }
+};
+
 // 组件挂载时获取数据
 onMounted(async () => {
     try {
@@ -553,16 +806,62 @@ onMounted(async () => {
     padding: 12px 0;
 }
 
-:deep(.el-tag) {
-    margin: 4px;
+:deep(.el-tag.nju-purple) {
+    background-color: #f3e6f7 !important;
+    color: #824082 !important;
+    border-color: #824082 !important;
 }
 
-:deep(.el-table__fixed-right) {
-    height: 100% !important;
+/* Styles for llm-upload-purple copied from UpLoadEventsView.vue */
+:deep(.llm-upload-purple .el-upload-dragger) {
+    border: 2px dashed #824082 !important;
+    background: #f3e6f7 !important;
+    color: #824082 !important;
 }
 
-:deep(.el-table__fixed-right::before) {
-    background-color: var(--el-table-border-color);
+:deep(.llm-upload-purple .el-upload-dragger:hover) {
+    border-color: #a05ca0 !important;
+    /* Adjusted hover color */
+    background: #e0c6e6 !important;
+}
+
+:deep(.llm-upload-purple .el-icon--upload) {
+    color: #824082 !important;
+}
+
+:deep(.llm-upload-purple .el-upload__text) {
+    color: #824082 !important;
+}
+
+:deep(.llm-upload-purple .el-upload__text em) {
+    color: #a05ca0 !important;
+    /* Adjusted em color */
+}
+
+:deep(.llm-upload-purple .el-upload__tip) {
+    color: #824082 !important;
+    font-size: 12px;
+    /* Consistent tip size */
+}
+
+:deep(.llm-upload-purple .el-upload-list__item) {
+    background: #f3e6f7 !important;
+    border: 1px solid #824082 !important;
+    color: #824082 !important;
+    margin-bottom: 8px;
+    /* Spacing for list items */
+}
+
+:deep(.llm-upload-purple .el-upload-list__item:hover) {
+    background: #e0c6e6 !important;
+}
+
+:deep(.llm-upload-purple .el-upload-list__item .el-icon--close) {
+    color: #824082 !important;
+}
+
+:deep(.llm-upload-purple .el-upload-list__item .el-icon--close:hover) {
+    color: #a05ca0 !important;
 }
 
 /* 紫色主题按钮，覆盖 Element Plus primary 按钮颜色 */
@@ -590,5 +889,25 @@ onMounted(async () => {
     background-color: #f3e6f7 !important;
     color: #824082 !important;
     border-color: #824082 !important;
+}
+
+/* 分页组件激活状态颜色 */
+:deep(.el-pagination.is-background .el-pager li:not(.is-disabled).is-active) {
+    background-color: #824082 !important;
+    /* 背景色 */
+    color: var(--el-color-white) !important;
+    /* 文字颜色 */
+}
+
+/* 分页组件按钮悬浮颜色 */
+:deep(.el-pagination.is-background .el-pager li:hover) {
+    color: #824082 !important;
+    /* 文字颜色 */
+}
+
+/* 分页组件按钮默认颜色 */
+:deep(.el-pagination.is-background .btn-prev:not(:disabled):hover),
+:deep(.el-pagination.is-background .btn-next:not(:disabled):hover) {
+    color: #824082 !important;
 }
 </style>
