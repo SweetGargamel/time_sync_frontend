@@ -94,7 +94,7 @@
             </el-table-column>
         </el-table>
         <el-pagination v-if="activeTable === 'group'" v-model:current-page="currentPageGroup"
-            v-model:page-size="pageSizeGroup" :page-sizes="[1, 2, 3, 5]"
+            v-model:page-size="pageSizeGroup" :page-sizes="[3, 5, 10, 20]"
             layout="total, sizes, prev, pager, next, jumper" :total="groupList.length"
             @size-change="handleSizeChangeGroup" @current-change="handleCurrentChangeGroup"
             style="margin-top: 20px; justify-content: flex-end;" />
@@ -186,7 +186,7 @@
             @close="handleAiPersonUploadCancel" id="ai-person-upload-dialog">
             <el-upload ref="aiPersonUploadRef" v-model:file-list="aiPersonUploadFileList"
                 class="upload-demo llm-upload-purple" drag action="#" :auto-upload="false" :limit="1"
-                accept=".csv,.xlsx,.txt,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/plain"
+                accept=".csv,.xlsx,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                 :on-exceed="handleAiPersonUploadExceed" :on-change="handleAiPersonFileChange"
                 :on-remove="handleAiPersonFileRemove">
                 <el-icon class="el-icon--upload"><upload-filled /></el-icon>
@@ -195,7 +195,7 @@
                 </div>
                 <template #tip>
                     <div class="el-upload__tip">
-                        请上传包含人员信息的 CSV, XLSX 或 TXT 格式文件，要求一列为学工号，一列为姓名，一列为其归属的组（比如开甲书院/计科三班）。限制1个, 新文件将覆盖旧文件。
+                        请上传包含人员信息的 CSV 或者 XLSX 格式文件，要求一列为学工号，一列为姓名，一列为其归属的组（比如开甲书院/计科三班）。限制1个, 新文件将覆盖旧文件。
                     </div>
                 </template>
             </el-upload>
@@ -217,6 +217,8 @@ import { v4 as uuidv4 } from 'uuid'
 import { UploadFilled } from '@element-plus/icons-vue'
 import { uploadAiExcelFile } from '@/hooks/submit_ai_excel.js'
 import { triggerAIInsertPerson } from '@/hooks/AI_Insert_Person.js'
+import { LLM_change_person_group_url } from '@/stores/url'
+import axios from 'axios'
 
 const store = usePersonGroupStore()
 const activeTable = ref('person') // 默认显示人员表格
@@ -227,7 +229,7 @@ const pageSizePerson = ref(15)
 
 // 分页相关 - 组
 const currentPageGroup = ref(1)
-const pageSizeGroup = ref(1)
+const pageSizeGroup = ref(5)
 
 // AI管理对话框相关
 const ai_person_DialogVisible = ref(false)
@@ -623,22 +625,24 @@ const handleAIDialogConfirm = async () => {
         text: '信息为后台正在操作中，请稍后',
         background: 'rgba(0, 0, 0, 0.7)'
     })
-
+    console.log(aiUserNeed.value)
     try {
-        const response = await fetch(LLM_change_person_group_url, {
-            method: 'POST',
+        const response = await axios.post(LLM_change_person_group_url, {
+            user_need: aiUserNeed.value
+        }, {
             headers: {
                 'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                user_need: aiUserNeed.value
-            })
+            }
         })
-        const data = await response.json()
-
-        if (data.code === 200) {
+        const data = response.data
+        if (response.status === 200 && data.code === 200) {
             ElMessage.success(data.msg)
             aiUserNeed.value = '' // 清空文本域
+            // 刷新人员和组数据
+            await Promise.all([
+                store.query_person_list(),
+                store.query_group_list()
+            ])
         } else {
             ElMessage.error(data.msg || '操作失败')
         }
@@ -658,27 +662,36 @@ const handleAiPersonUploadExceed = (files) => {
     }
 };
 
-const handleAiPersonFileChange = (uploadFile, uploadFiles) => {
+const handleAiPersonFileChange = async (uploadFile, uploadFiles) => {
     // Limit to one file, new one replaces old one via on-exceed
     // This is mainly to ensure our aiPersonUploadFileList is in sync if not using v-model directly or if other logic is needed.
     // For limit 1, on-exceed should handle replacement.
     // We can add client-side validation for type/size here if desired.
-    const allowedTypes = ['text/csv', 'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'text/plain'];
-    if (!allowedTypes.includes(uploadFile.raw.type) && uploadFile.status === 'ready') {
-        ElMessage.error('文件类型不支持! 请上传 CSV, XLSX, 或 TXT 文件。');
-        if (aiPersonUploadRef.value) {
-            aiPersonUploadRef.value.handleRemove(uploadFile); // Remove from el-upload's list
+    try {
+        const allowedTypes = ['text/csv', 'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'];
+        if (!allowedTypes.includes(uploadFile.raw.type) && uploadFile.status === 'ready') {
+            ElMessage.error('文件类型不支持! 请上传 CSV, XLSX文件。');
+            if (aiPersonUploadRef.value) {
+                aiPersonUploadRef.value.handleRemove(uploadFile); // Remove from el-upload's list
+            }
+            aiPersonUploadFileList.value = uploadFiles.filter(f => f.uid !== uploadFile.uid); // Ensure our list is also updated
+            return false;
         }
-        aiPersonUploadFileList.value = uploadFiles.filter(f => f.uid !== uploadFile.uid); // Ensure our list is also updated
-        return false;
+        // If on-exceed works as expected, aiPersonUploadFileList (if v-modeled) should update.
+        // If not v-modeled, or to be absolutely sure:
+        if (uploadFiles.length > 0) {
+            aiPersonUploadFileList.value = [uploadFiles[uploadFiles.length - 1]]; // Keep only the last one
+        } else {
+            aiPersonUploadFileList.value = [];
+        }
+    } catch (error) {
+        console.error('Error in file change handler:', error);
+    } finally {
+        await store.query_person_list()
+        await store.query_group_list()
     }
-    // If on-exceed works as expected, aiPersonUploadFileList (if v-modeled) should update.
-    // If not v-modeled, or to be absolutely sure:
-    if (uploadFiles.length > 0) {
-        aiPersonUploadFileList.value = [uploadFiles[uploadFiles.length - 1]]; // Keep only the last one
-    } else {
-        aiPersonUploadFileList.value = [];
-    }
+
+
 };
 
 const handleAiPersonFileRemove = (uploadFile, uploadFiles) => {
@@ -748,6 +761,8 @@ const handleAiPersonUploadSubmit = async () => {
         ElMessage.error('提交处理失败，请检查控制台');
     } finally {
         loadingInstance.close();
+        await store.query_person_list();
+        await store.query_group_list();
     }
 };
 

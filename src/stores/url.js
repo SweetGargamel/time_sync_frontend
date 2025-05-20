@@ -1,6 +1,6 @@
 // 基础 URL 配置
-// const base_url = 'http://47.122.85.137:5001'
-const base_url = 'http://localhost:5001'
+const base_url = 'http://47.122.85.137:5001'
+// const base_url = 'http://localhost:5001'
 
 // 事件相关 URL
 export const update_user_confirmed_events_url = `${base_url}/api/update_user_confirmed_events`
