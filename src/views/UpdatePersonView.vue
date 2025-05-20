@@ -195,7 +195,7 @@
                 </div>
                 <template #tip>
                     <div class="el-upload__tip">
-                        请上传 CSV, XLSX 或 TXT 格式文件 (限制1个, 新文件将覆盖旧文件)
+                        请上传包含人员信息的 CSV, XLSX 或 TXT 格式文件，要求一列为学工号，一列为姓名，一列为其归属的组（比如开甲书院/计科三班）。限制1个, 新文件将覆盖旧文件。
                     </div>
                 </template>
             </el-upload>
