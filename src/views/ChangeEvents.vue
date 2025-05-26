@@ -225,7 +225,7 @@ const handleLLMChangeEvents = async () => {
 
     try {
         const response = await change_event_store.LLM_change_events_action(user_need.value, selectedPersons.value)
-        if (response.code === 200) {
+        if (response.status === 200) {
             ElMessage.success(response.msg || '修改成功')
             // 刷新日程数据
             if (change_event_store.selectedPersonId && currentView.value.start && currentView.value.end) {
@@ -236,7 +236,7 @@ const handleLLMChangeEvents = async () => {
                 )
             }
         } else {
-            ElMessage.error(response.msg || '修改失败')
+            ElMessage.error(response.data.msg || '修改失败')
         }
     } catch (error) {
         console.error('修改日程失败:', error)

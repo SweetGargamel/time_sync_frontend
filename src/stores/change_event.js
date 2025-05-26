@@ -96,7 +96,7 @@ export const useChangeEventStore = defineStore('changeEvent', () => {
         user_need,
         persons: persons_ids,
       })
-      return response.data
+      return response
     } catch (error) {
       console.error('修改日程失败:', error)
       throw error

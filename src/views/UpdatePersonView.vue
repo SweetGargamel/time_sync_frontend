@@ -291,7 +291,6 @@ const editGroupForm = reactive({
 })
 const editGroupFormRules = {
     name: [{ required: true, message: '组名不能为空', trigger: 'blur' }],
-    persons: [{ required: true, message: '请选择组成员', trigger: 'change' }]
 }
 const editGroupFormRef = ref()
 
@@ -320,7 +319,7 @@ const addGroupForm = reactive({
 })
 const addGroupFormRules = {
     name: [{ required: true, message: '组名不能为空', trigger: 'blur' }],
-    persons: [{ required: true, message: '请选择组成员', trigger: 'change' }]
+    // persons: [{ required: true, message: '请选择组成员', trigger: 'change' }]
 }
 const addGroupFormRef = ref()
 
